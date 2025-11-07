@@ -1,0 +1,34 @@
+{
+    "name": "laravel-afterburner/documents",
+    "description": "Document management package for Afterburner applications",
+    "type": "library",
+    "license": "MIT",
+    "require": {
+        "php": "^8.2",
+        "laravel/framework": "^11.0",
+        "laravel-afterburner/jetstream": "^1.0|dev-master",
+        "livewire/livewire": "^3.5",
+        "league/flysystem-aws-s3-v3": "^3.30"
+    },
+    "require-dev": {
+        "laravel/pint": "^1.13",
+        "phpunit/phpunit": "^11.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Afterburner\\Documents\\": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Afterburner\\Documents\\DocumentsServiceProvider"
+            ],
+            "commands": [
+                "Afterburner\\Documents\\Console\\Commands\\InstallCommand"
+            ]
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}

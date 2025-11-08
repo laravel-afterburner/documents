@@ -9,6 +9,7 @@
         "laravel-afterburner/jetstream": "^1.0|dev-master",
         "livewire/livewire": "^3.5",
         "league/flysystem-aws-s3-v3": "^3.30",
+        "spatie/livewire-filepond": "^1.0"
     },
     "require-dev": {
         "laravel/pint": "^1.13",
@@ -22,10 +23,10 @@
     "extra": {
         "laravel": {
             "providers": [
-                
+                "Afterburner\\Documents\\Providers\\DocumentsServiceProvider"
             ],
             "commands": [
-                
+                "Afterburner\\Documents\\Console\\Commands\\InstallCommand"
             ]
         }
     },

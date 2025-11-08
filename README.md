@@ -30,7 +30,7 @@ For local development, add the package as a path repository:
 
 ```bash
 composer config repositories.afterburner-documents path ../afterburner-documents
-composer require afterburner/documents:@dev
+composer require laravel-afterburner/documents:@dev
 composer require league/flysystem-aws-s3-v3  # Required for R2 support
 ```
 

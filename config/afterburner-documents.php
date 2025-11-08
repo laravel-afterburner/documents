@@ -35,6 +35,29 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Filesystem Disk Configuration
+    |--------------------------------------------------------------------------
+    |
+    | The R2 disk configuration that will be automatically registered in
+    | Laravel's filesystem configuration. This disk is registered programmatically
+    | by the DocumentsServiceProvider.
+    |
+    */
+
+    'filesystem_disk' => [
+        'driver' => 's3',
+        'key' => env('AFTERBURNER_DOCUMENTS_R2_ACCESS_KEY_ID', env('CLOUDFLARE_R2_ACCESS_KEY_ID')),
+        'secret' => env('AFTERBURNER_DOCUMENTS_R2_SECRET_ACCESS_KEY', env('CLOUDFLARE_R2_SECRET_ACCESS_KEY')),
+        'region' => env('AFTERBURNER_DOCUMENTS_R2_REGION', env('CLOUDFLARE_R2_REGION', 'auto')),
+        'bucket' => env('AFTERBURNER_DOCUMENTS_R2_BUCKET', env('CLOUDFLARE_R2_BUCKET')),
+        'url' => env('AFTERBURNER_DOCUMENTS_R2_URL', env('CLOUDFLARE_R2_URL')),
+        'endpoint' => env('AFTERBURNER_DOCUMENTS_R2_ENDPOINT', env('CLOUDFLARE_R2_ENDPOINT')),
+        'use_path_style_endpoint' => env('AFTERBURNER_DOCUMENTS_R2_USE_PATH_STYLE_ENDPOINT', env('CLOUDFLARE_R2_USE_PATH_STYLE_ENDPOINT', false)),
+        'throw' => false,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Upload Configuration
     |--------------------------------------------------------------------------
     |

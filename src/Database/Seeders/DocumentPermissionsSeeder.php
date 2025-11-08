@@ -264,38 +264,50 @@ class DocumentPermissionsSeeder extends Seeder
             // Get the role with the highest hierarchy number
             $highestRole = $ownerRoles->first();
 
+            // Check if timestamp columns exist
+            $hasTimestamps = in_array('created_at', $rolePermissionColumns) && in_array('updated_at', $rolePermissionColumns);
+
             // Assign permissions to this role
             if (in_array('role_slug', $rolePermissionColumns) && in_array('permission_id', $rolePermissionColumns)) {
                 // Pattern: role_slug + permission_id
                 foreach ($insertedPermissionIds as $permissionId) {
-                    DB::table('role_permission')->insertOrIgnore([
+                    $data = [
                         'role_slug' => $highestRole->slug,
                         'permission_id' => $permissionId,
-                        'created_at' => $now,
-                        'updated_at' => $now,
-                    ]);
+                    ];
+                    if ($hasTimestamps) {
+                        $data['created_at'] = $now;
+                        $data['updated_at'] = $now;
+                    }
+                    DB::table('role_permission')->insertOrIgnore($data);
                 }
                 $assignedCount++;
             } elseif (in_array('role_slug', $rolePermissionColumns) && in_array('permission_slug', $rolePermissionColumns)) {
                 // Pattern: role_slug + permission_slug
                 foreach ($permissions as $permission) {
-                    DB::table('role_permission')->insertOrIgnore([
+                    $data = [
                         'role_slug' => $highestRole->slug,
                         'permission_slug' => $permission['slug'],
-                        'created_at' => $now,
-                        'updated_at' => $now,
-                    ]);
+                    ];
+                    if ($hasTimestamps) {
+                        $data['created_at'] = $now;
+                        $data['updated_at'] = $now;
+                    }
+                    DB::table('role_permission')->insertOrIgnore($data);
                 }
                 $assignedCount++;
             } elseif (in_array('role_id', $rolePermissionColumns) && in_array('permission_id', $rolePermissionColumns)) {
                 // Pattern: role_id + permission_id
                 foreach ($insertedPermissionIds as $permissionId) {
-                    DB::table('role_permission')->insertOrIgnore([
+                    $data = [
                         'role_id' => $highestRole->id,
                         'permission_id' => $permissionId,
-                        'created_at' => $now,
-                        'updated_at' => $now,
-                    ]);
+                    ];
+                    if ($hasTimestamps) {
+                        $data['created_at'] = $now;
+                        $data['updated_at'] = $now;
+                    }
+                    DB::table('role_permission')->insertOrIgnore($data);
                 }
                 $assignedCount++;
             }

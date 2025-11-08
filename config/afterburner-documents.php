@@ -44,7 +44,8 @@ return [
 
     'upload' => [
         'chunk_size' => env('AFTERBURNER_DOCUMENTS_CHUNK_SIZE', 5242880), // 5MB in bytes
-        'max_file_size' => env('AFTERBURNER_DOCUMENTS_MAX_FILE_SIZE', 104857600), // 100MB in bytes
+        'max_file_size' => env('AFTERBURNER_DOCUMENTS_MAX_FILE_SIZE', 2147483648), // 2GB in bytes
+        'max_chunks' => env('AFTERBURNER_DOCUMENTS_MAX_CHUNKS', 5000), // Maximum number of chunks per upload
         'allowed_mime_types' => [
             // Documents
             'application/pdf',

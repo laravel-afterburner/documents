@@ -74,6 +74,44 @@ AFTERBURNER_DOCUMENTS_R2_USE_PATH_STYLE_ENDPOINT=false
 
 **Note**: You can also use the generic `CLOUDFLARE_R2_*` environment variables if you have them set up for other parts of your application. The package will fall back to those if the specific `AFTERBURNER_DOCUMENTS_R2_*` variables aren't set.
 
+### Upload Configuration
+
+The package supports chunked uploads for large files. Configure upload limits in your `.env`:
+
+```env
+# Upload Limits (max_file_size in bytes, max_chunks per upload, chunk_size in bytes)
+# Default: 2GB max file size, 5000 max chunks, 5MB chunk size
+AFTERBURNER_DOCUMENTS_MAX_FILE_SIZE=2147483648
+AFTERBURNER_DOCUMENTS_MAX_CHUNKS=5000
+AFTERBURNER_DOCUMENTS_CHUNK_SIZE=5242880
+```
+
+- **MAX_FILE_SIZE**: Maximum file size in bytes (default: 2GB = 2,147,483,648 bytes)
+- **MAX_CHUNKS**: Maximum number of chunks per upload (default: 5,000)
+- **CHUNK_SIZE**: Size of each chunk in bytes (default: 5MB = 5,242,880 bytes)
+
+Files larger than the chunk size are automatically uploaded using chunked uploads. For example, a 2GB file with 5MB chunks will be split into ~409 chunks.
+
+#### PHP Configuration Requirements
+
+**Important**: Livewire file uploads respect PHP's `upload_max_filesize` and `post_max_size` settings. If you encounter errors like "The file field must not be greater than X kilobytes", you need to increase these PHP settings.
+
+For large file uploads, ensure your `php.ini` has:
+
+```ini
+upload_max_filesize = 256M
+post_max_size = 256M
+```
+
+Or set them in your `.htaccess` (if using Apache):
+
+```apache
+php_value upload_max_filesize 256M
+php_value post_max_size 256M
+```
+
+**Note**: Files larger than PHP's `upload_max_filesize` will automatically use chunked uploads, but Livewire may still reject them during initial validation. It's recommended to set `upload_max_filesize` to at least match your `CHUNK_SIZE` setting (default 5MB) or higher for better compatibility.
+
 See [CLOUDFLARE_R2_SETUP.md](CLOUDFLARE_R2_SETUP.md) for detailed setup instructions.
 
 ## Usage

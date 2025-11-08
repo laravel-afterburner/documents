@@ -291,6 +291,40 @@
             isUploading: @entangle('isUploading'),
             uploadProgress: @entangle('uploadProgress'),
             cancelUpload: false,
+            uploadStartTime: null,
+            bytesUploaded: 0,
+            uploadSpeed: 0,
+            timeRemaining: null,
+            fileSize: 0,
+            
+            formatTime(seconds) {
+                if (!seconds || seconds === Infinity || isNaN(seconds)) return 'Calculating...';
+                if (seconds < 60) return Math.ceil(seconds) + 's';
+                const mins = Math.floor(seconds / 60);
+                const secs = Math.ceil(seconds % 60);
+                return mins + 'm ' + secs + 's';
+            },
+            
+            formatBytes(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+            },
+            
+            updateProgressStats(uploadedChunks, totalChunks, fileSize) {
+                this.bytesUploaded = (uploadedChunks / totalChunks) * fileSize;
+                const elapsed = (Date.now() - this.uploadStartTime) / 1000; // seconds
+                
+                if (elapsed > 0 && this.bytesUploaded > 0) {
+                    this.uploadSpeed = this.bytesUploaded / elapsed; // bytes per second
+                    const remainingBytes = fileSize - this.bytesUploaded;
+                    if (this.uploadSpeed > 0) {
+                        this.timeRemaining = remainingBytes / this.uploadSpeed;
+                    }
+                }
+            },
             
             init() {
                 // Watch for chunked upload trigger
@@ -307,6 +341,15 @@
                                 @js($team->id)
                             );
                         }
+                    }
+                });
+                
+                // Watch upload progress to update stats
+                this.$watch('uploadProgress', (value) => {
+                    if (this.isUploading && this.fileSize > 0 && this.uploadStartTime) {
+                        const totalChunks = Math.ceil(this.fileSize / this.chunkSize);
+                        const uploadedChunks = Math.round((value / 100) * totalChunks);
+                        this.updateProgressStats(uploadedChunks, totalChunks, this.fileSize);
                     }
                 });
             },
@@ -326,10 +369,15 @@
                 if (!file) return;
                 
                 const fileSize = file.size;
+                this.fileSize = fileSize;
                 
                 // Chunked upload - already triggered by Livewire setting isUploading = true
                 this.uploadProgress = 0;
                 this.cancelUpload = false;
+                this.uploadStartTime = Date.now();
+                this.bytesUploaded = 0;
+                this.uploadSpeed = 0;
+                this.timeRemaining = null;
                 
                 try {
                     const totalChunks = Math.ceil(fileSize / this.chunkSize);
@@ -374,6 +422,7 @@
                         formData.append('chunk_number', chunkNumber);
                         formData.append('chunk', chunk, file.name);
                         
+                        const chunkStartTime = Date.now();
                         const chunkResponse = await fetch('{{ route('upload.chunk') }}', {
                             method: 'POST',
                             headers: {
@@ -389,8 +438,12 @@
                         }
                         
                         const result = await chunkResponse.json();
-                        this.uploadProgress = Math.round((result.uploaded_chunks / totalChunks) * 100);
-                        @this.set('uploadProgress', this.uploadProgress);
+                        const progress = Math.round((result.uploaded_chunks / totalChunks) * 100);
+                        this.uploadProgress = progress;
+                        @this.set('uploadProgress', progress);
+                        
+                        // Update progress stats
+                        this.updateProgressStats(result.uploaded_chunks, totalChunks, fileSize);
                     }
                     
                     // Get final path from Livewire
@@ -514,7 +567,7 @@
                                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                         </svg>
-                                        Uploading...
+                                        Processing upload...
                                     </span>
                                 </div>
                                 <div class="h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
@@ -526,11 +579,23 @@
                             @if($isUploading && !$isUploadingRegular)
                                 <div class="mb-4">
                                     <div class="mb-2 flex items-center justify-between text-sm text-gray-700 dark:text-gray-300">
-                                        <span>Uploading...</span>
-                                        <span x-text="uploadProgress + '%'"></span>
+                                        <span class="flex items-center">
+                                            <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
+                                            Uploading...
+                                        </span>
+                                        <span class="font-medium" x-text="uploadProgress + '%'"></span>
                                     </div>
-                                    <div class="h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
-                                        <div class="h-full bg-indigo-600 transition-all" x-bind:style="'width: ' + uploadProgress + '%'"></div>
+                                    <div class="h-2.5 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+                                        <div class="h-full bg-indigo-600 transition-all duration-300 ease-out" x-bind:style="'width: ' + uploadProgress + '%'"></div>
+                                    </div>
+                                    <div class="mt-2 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                                        <span x-show="uploadSpeed > 0" x-text="formatBytes(bytesUploaded) + ' / ' + formatBytes(fileSize) + ' (' + formatBytes(uploadSpeed) + '/s)'"></span>
+                                        <span x-show="uploadSpeed === 0" x-text="formatBytes(bytesUploaded) + ' / ' + formatBytes(fileSize)"></span>
+                                        <span x-show="timeRemaining && timeRemaining !== Infinity" class="font-medium text-indigo-600 dark:text-indigo-400" x-text="'~' + formatTime(timeRemaining) + ' remaining'"></span>
+                                        <span x-show="!timeRemaining || timeRemaining === Infinity" class="text-gray-400">Calculating...</span>
                                     </div>
                                 </div>
                             @endif
@@ -541,16 +606,19 @@
                                         Cancel
                                     </x-secondary-button>
                                 @else
-                                    <x-secondary-button wire:click="closeModal" wire:loading.attr="disabled" wire:target="upload" type="button">
+                                    <x-secondary-button wire:click="closeModal" 
+                                                         wire:loading.attr="disabled" 
+                                                         wire:target="upload" 
+                                                         type="button"
+                                                         x-bind:disabled="isUploading || $wire.isUploadingRegular">
                                         Cancel
                                     </x-secondary-button>
                                     <x-button @click="handleUpload()" 
-                                              wire:loading.attr="disabled" 
-                                              wire:target="upload" 
                                               type="button"
-                                              x-bind:disabled="!$wire.file">
-                                        <span wire:loading.remove wire:target="upload">Upload</span>
-                                        <span wire:loading wire:target="upload" class="flex items-center">
+                                              x-bind:disabled="!$wire.file || isUploading || $wire.isUploadingRegular"
+                                              x-bind:class="(isUploading || $wire.isUploadingRegular) ? 'opacity-75 cursor-not-allowed' : ''">
+                                        <span x-show="!isUploading && !$wire.isUploadingRegular">Upload</span>
+                                        <span x-show="isUploading || $wire.isUploadingRegular" class="flex items-center">
                                             <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>

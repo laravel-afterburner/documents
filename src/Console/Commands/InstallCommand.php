@@ -36,6 +36,9 @@ class InstallCommand extends Command
         'AFTERBURNER_DOCUMENTS_R2_REGION' => 'auto',
         'AFTERBURNER_DOCUMENTS_R2_URL' => 'https://your-bucket-domain.com  (Optional: if you set up a custom domain)',
         'AFTERBURNER_DOCUMENTS_R2_USE_PATH_STYLE_ENDPOINT' => 'false',
+        'AFTERBURNER_DOCUMENTS_MAX_FILE_SIZE' => '2147483648',
+        'AFTERBURNER_DOCUMENTS_MAX_CHUNKS' => '5000',
+        'AFTERBURNER_DOCUMENTS_CHUNK_SIZE' => '5242880',
     ];
 
     /**
@@ -133,18 +136,44 @@ class InstallCommand extends Command
         if (!empty($added)) {
             $this->info('Adding environment variables to .env...');
 
-            // Add a comment section if it doesn't exist
-            $comment = "\n# Cloudflare R2 Configuration for Afterburner Documents\n";
-            if (strpos($envContent, '# Cloudflare R2 Configuration') === false) {
-                $envContent .= $comment;
+            // Define comment sections
+            $r2Comment = "\n# Cloudflare R2 Configuration for Afterburner Documents\n";
+            $uploadComment = "\n# Upload Configuration for Afterburner Documents\n";
+            $uploadLimitsComment = "# Upload Limits (max_file_size in bytes, max_chunks per upload, chunk_size in bytes)\n";
+            $uploadDefaultsComment = "# Default: 2GB max file size, 5000 max chunks, 5MB chunk size\n";
+            
+            // Define upload keys
+            $uploadKeys = ['AFTERBURNER_DOCUMENTS_MAX_FILE_SIZE', 'AFTERBURNER_DOCUMENTS_MAX_CHUNKS', 'AFTERBURNER_DOCUMENTS_CHUNK_SIZE'];
+            $uploadAdded = array_intersect($added, $uploadKeys);
+            $r2Added = array_diff($added, $uploadKeys);
+            
+            // Add comment sections if they don't exist
+            if (strpos($envContent, '# Cloudflare R2 Configuration') === false && !empty($r2Added)) {
+                $envContent .= $r2Comment;
             }
-
-            // Add each missing variable
-            foreach ($added as $key) {
+            
+            if (strpos($envContent, '# Upload Configuration') === false && !empty($uploadAdded)) {
+                $envContent .= $uploadComment;
+            }
+            
+            // Add R2 variables first
+            foreach ($r2Added as $key) {
                 $value = $this->envVariables[$key];
                 $line = "{$key}={$value}\n";
                 $envContent .= $line;
                 $this->line("  ✓ Added: {$key}");
+            }
+            
+            // Add upload variables with comments
+            if (!empty($uploadAdded)) {
+                $envContent .= $uploadLimitsComment;
+                $envContent .= $uploadDefaultsComment;
+                foreach ($uploadAdded as $key) {
+                    $value = $this->envVariables[$key];
+                    $line = "{$key}={$value}\n";
+                    $envContent .= $line;
+                    $this->line("  ✓ Added: {$key}");
+                }
             }
 
             File::put($envPath, $envContent);
@@ -152,11 +181,34 @@ class InstallCommand extends Command
             // Also update .env.example if it exists
             if (File::exists($envExamplePath)) {
                 $envExampleContent = File::get($envExamplePath);
-                if (!$this->envVariableExists($envExampleContent, 'AFTERBURNER_DOCUMENTS_R2_ENDPOINT')) {
-                    $envExampleContent .= $comment;
+                $needsUpdate = false;
+                
+                // Check if any R2 variables are missing
+                if (!$this->envVariableExists($envExampleContent, 'AFTERBURNER_DOCUMENTS_R2_ENDPOINT') && !empty($r2Added)) {
+                    $envExampleContent .= $r2Comment;
+                    $needsUpdate = true;
+                }
+                
+                // Check if any upload variables are missing
+                $missingUpload = array_filter($uploadKeys, function($key) use ($envExampleContent) {
+                    return !$this->envVariableExists($envExampleContent, $key);
+                });
+                
+                if (!empty($missingUpload)) {
+                    if (strpos($envExampleContent, '# Upload Configuration') === false) {
+                        $envExampleContent .= $uploadComment;
+                    }
+                    $envExampleContent .= $uploadLimitsComment;
+                    $envExampleContent .= $uploadDefaultsComment;
+                    $needsUpdate = true;
+                }
+                
+                if ($needsUpdate) {
                     foreach ($added as $key) {
-                        $value = $this->envVariables[$key];
-                        $envExampleContent .= "{$key}={$value}\n";
+                        if (!$this->envVariableExists($envExampleContent, $key)) {
+                            $value = $this->envVariables[$key];
+                            $envExampleContent .= "{$key}={$value}\n";
+                        }
                     }
                     File::put($envExamplePath, $envExampleContent);
                     $this->line("  ✓ Updated .env.example");

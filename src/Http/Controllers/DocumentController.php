@@ -86,7 +86,7 @@ class DocumentController extends Controller
             'team_id' => 'required|exists:teams,id',
             'folder_id' => 'nullable|exists:folders,id',
             'name' => 'required|string|max:255',
-            'file' => 'nullable|file|max:'.config('afterburner-documents.upload.max_file_size', 104857600),
+            'file' => 'nullable|file|max:'.(config('afterburner-documents.upload.max_file_size', 2147483648) / 1024),
             'storage_path' => 'nullable|string', // For chunked uploads
             'retention_tag_id' => 'nullable|exists:retention_tags,id',
         ]);
@@ -156,7 +156,7 @@ class DocumentController extends Controller
         $request->validate([
             'name' => 'sometimes|string|max:255',
             'folder_id' => 'nullable|exists:folders,id',
-            'file' => 'nullable|file|max:'.config('afterburner-documents.upload.max_file_size', 104857600),
+            'file' => 'nullable|file|max:'.(config('afterburner-documents.upload.max_file_size', 2147483648) / 1024),
             'storage_path' => 'nullable|string', // For chunked uploads
             'retention_tag_id' => 'nullable|exists:retention_tags,id',
             'change_summary' => 'nullable|string|max:500',

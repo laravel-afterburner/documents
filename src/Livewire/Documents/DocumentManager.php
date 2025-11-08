@@ -245,21 +245,88 @@ class DocumentManager extends Component
 
     public function updatedFile()
     {
-        $this->validate([
-            'file' => 'file|max:'.config('afterburner-documents.upload.max_file_size', 104857600),
-        ]);
-
-        // Auto-detect if chunked upload is needed
-        if ($this->file && $this->file->getSize() > $this->chunkSize) {
-            $this->useChunkedUpload = true;
-        } else {
-            $this->useChunkedUpload = false;
+        // Note: Livewire respects PHP's upload_max_filesize setting
+        // If you get "file must not be greater than X kilobytes" errors,
+        // you need to increase PHP's upload_max_filesize and post_max_size settings
+        // For files larger than PHP's limit, chunked uploads will be used automatically
+        
+        if (!$this->file) {
+            return;
         }
+        
+        $phpMaxSizeStr = ini_get('upload_max_filesize') ?: '512M';
+        $phpMaxSizeBytes = $this->parseSize($phpMaxSizeStr);
+        $configMaxSize = config('afterburner-documents.upload.max_file_size', 2147483648);
+        
+        // Check if file will use chunked upload BEFORE validation
+        // Files larger than chunk size OR larger than PHP's upload_max_filesize should use chunked uploads
+        $willUseChunked = $this->file->getSize() > $this->chunkSize || $this->file->getSize() > $phpMaxSizeBytes;
+        
+        // Only validate if NOT using chunked uploads
+        // Chunked uploads bypass Livewire's file upload mechanism entirely,
+        // so we don't need to validate those files through Livewire validation
+        if (!$willUseChunked) {
+            // Use the smaller of PHP limit or config limit for validation
+            // Convert to kilobytes for Laravel validation
+            $maxSizeKB = (int)(min($phpMaxSizeBytes, $configMaxSize) / 1024);
+            
+            // Debug: Log what we're using (remove after testing)
+            \Log::debug('File upload validation', [
+                'php_max_size_str' => $phpMaxSizeStr,
+                'php_max_size_bytes' => $phpMaxSizeBytes,
+                'config_max_size' => $configMaxSize,
+                'max_size_kb' => $maxSizeKB,
+                'file_size' => $this->file->getSize(),
+                'will_use_chunked' => $willUseChunked,
+            ]);
+            
+            $this->validate([
+                'file' => 'file|max:'.$maxSizeKB,
+            ]);
+        } else {
+            // For chunked uploads, just log that we're skipping validation
+            \Log::debug('File upload validation skipped (chunked upload)', [
+                'file_size' => $this->file->getSize(),
+                'chunk_size' => $this->chunkSize,
+                'php_max_size_bytes' => $phpMaxSizeBytes,
+                'config_max_size' => $configMaxSize,
+            ]);
+        }
+        
+        // Set chunked upload flag
+        $this->useChunkedUpload = $willUseChunked;
 
         // Set name from filename if not provided
-        if (!$this->name && $this->file) {
+        if (!$this->name) {
             $this->name = pathinfo($this->file->getClientOriginalName(), PATHINFO_FILENAME);
         }
+    }
+    
+    /**
+     * Parse PHP size string (e.g., "12M", "2G") to bytes.
+     */
+    protected function parseSize(string $size): int
+    {
+        $size = trim($size);
+        if (empty($size)) {
+            return 512 * 1024 * 1024; // Default to 512MB if empty
+        }
+        
+        $last = strtolower($size[strlen($size) - 1]);
+        $numericSize = (float) $size; // Use float to handle decimal values
+        
+        switch ($last) {
+            case 'g':
+                $numericSize *= 1024;
+                // no break
+            case 'm':
+                $numericSize *= 1024;
+                // no break
+            case 'k':
+                $numericSize *= 1024;
+        }
+        
+        return (int) $numericSize;
     }
 
     public function upload()
@@ -290,7 +357,7 @@ class DocumentManager extends Component
         }
 
         // Check file size
-        $maxSize = config('afterburner-documents.upload.max_file_size', 104857600);
+        $maxSize = config('afterburner-documents.upload.max_file_size', 2147483648);
         if ($this->file->getSize() > $maxSize) {
             $this->addError('file', 'File size exceeds the maximum allowed size.');
             return;

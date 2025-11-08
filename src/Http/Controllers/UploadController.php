@@ -24,8 +24,8 @@ class UploadController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'filename' => 'required|string|max:255',
-            'total_chunks' => 'required|integer|min:1|max:10000',
-            'total_size' => 'required|integer|min:1|max:'.config('afterburner-documents.upload.max_file_size', 104857600),
+            'total_chunks' => 'required|integer|min:1|max:'.config('afterburner-documents.upload.max_chunks', 5000),
+            'total_size' => 'required|integer|min:1|max:'.config('afterburner-documents.upload.max_file_size', 2147483648),
             'team_id' => 'required|exists:teams,id',
         ]);
 
@@ -65,7 +65,7 @@ class UploadController extends Controller
         $validator = Validator::make($request->all(), [
             'upload_id' => 'required|string',
             'chunk_number' => 'required|integer|min:0',
-            'chunk' => 'required|file|max:'.config('afterburner-documents.upload.chunk_size', 5242880),
+            'chunk' => 'required|file|max:'.(config('afterburner-documents.upload.chunk_size', 5242880) / 1024),
         ]);
 
         if ($validator->fails()) {

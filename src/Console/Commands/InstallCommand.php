@@ -59,6 +59,9 @@ class InstallCommand extends Command
             $this->addEnvironmentVariables();
         }
 
+        // Seed document permissions
+        $this->seedDocumentPermissions();
+
         $this->newLine();
         $this->info('✓ Installation complete!');
         $this->newLine();
@@ -66,6 +69,15 @@ class InstallCommand extends Command
         $this->line('  1. Update your .env file with your Cloudflare R2 credentials');
         $this->line('  2. Run migrations: php artisan migrate');
         $this->line('  3. Follow the setup guide: See CLOUDFLARE_R2_SETUP.md');
+        $this->newLine();
+        $this->comment('📋 Document Permissions:');
+        $this->line('  Document permissions have been seeded and assigned to team owners\' highest hierarchy role.');
+        $this->line('  Team owners now have full document management permissions.');
+        $this->line('');
+        $this->line('  To configure permissions for your custom roles:');
+        $this->line('  • Edit config/afterburner-documents.php to set default permissions');
+        $this->line('  • Or configure permissions per document/folder in the UI');
+        $this->line('  • Or set AFTERBURNER_DOCUMENTS_SKIP_DEFAULT_PERMISSIONS=true to manage manually');
 
         return Command::SUCCESS;
     }
@@ -234,5 +246,28 @@ class InstallCommand extends Command
         // This handles cases like: KEY=value or KEY = value
         return preg_match("/^\s*{$key}\s*=/m", $content) === 1;
     }
-}
 
+    /**
+     * Seed document permissions into the database.
+     */
+    protected function seedDocumentPermissions(): void
+    {
+        $this->info('Seeding document permissions...');
+
+        try {
+            $seeder = new \Afterburner\Documents\Database\Seeders\DocumentPermissionsSeeder();
+            // Set the command property using reflection so the seeder can output messages
+            $reflection = new \ReflectionClass($seeder);
+            $commandProperty = $reflection->getProperty('command');
+            $commandProperty->setAccessible(true);
+            $commandProperty->setValue($seeder, $this);
+            
+            $seeder->run();
+        } catch (\Exception $e) {
+            $this->warn('  ⚠ Could not seed document permissions: ' . $e->getMessage());
+            $this->line('  You can manually run: php artisan db:seed --class="Afterburner\\Documents\\Database\\Seeders\\DocumentPermissionsSeeder"');
+        }
+
+        $this->newLine();
+    }
+}

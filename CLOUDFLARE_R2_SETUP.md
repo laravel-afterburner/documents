@@ -51,7 +51,7 @@ You need to create API tokens to allow your Laravel application to access R2:
 Run the install command to automatically add the required environment variables to your `.env` file:
 
 ```bash
-php artisan documents:install
+php artisan afterburner:documents:install
 ```
 
 This will add placeholder values that you can then replace with your actual credentials.

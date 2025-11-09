@@ -1,6 +1,6 @@
 <div>
 
-    <div wire:poll.5s>
+    <div>
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             <!-- Breadcrumbs -->
             @if($currentFolder)
@@ -10,17 +10,19 @@
             @endif
 
             <!-- Action Buttons -->
-            <div class="mb-6 flex gap-2 justify-end" x-data>
+            <div class="mb-6 flex gap-2 justify-end">
                 @can('create', [\Afterburner\Documents\Models\Document::class, $team])
                     <x-button
-                        @click="$dispatch('open-upload-modal')"
+                        wire:click="openUploadModal"
+                        no-spinner
                     >
                         Upload Document
                     </x-button>
                 @endcan
                 @can('create', [\Afterburner\Documents\Models\Folder::class, $team])
                     <x-button
-                        @click="$dispatch('open-folder-modal')"
+                        wire:click="openFolderModal"
+                        no-spinner
                     >
                         New Folder
                     </x-button>
@@ -143,9 +145,11 @@
                                 @include('afterburner-documents::components.folder-card', ['folder' => $folder])
                             @endforeach
 
+                            <div wire:poll.5s style="display: contents;">
                             @foreach($documents as $document)
                                 @include('afterburner-documents::components.document-card', ['document' => $document])
                             @endforeach
+                            </div>
                         </div>
 
                         <!-- Pagination -->
@@ -210,8 +214,38 @@
             <x-secondary-button wire:click="closeFolderModal">
                 Cancel
             </x-secondary-button>
-            <x-button wire:click="createFolder" class="ml-3">
+            <x-button wire:click="createFolder" class="ml-3" no-spinner>
                 Create
+            </x-button>
+        </x-slot>
+    </x-dialog-modal>
+
+    <!-- Folder Edit Modal -->
+    <x-dialog-modal wire:model.live="showingEditFolderModal" maxWidth="md">
+        <x-slot name="title">
+            Edit Folder
+        </x-slot>
+
+        <x-slot name="content">
+            <div>
+                <x-label for="editFolderName" value="Folder Name" />
+                <x-input
+                    id="editFolderName"
+                    type="text"
+                    class="mt-1 block w-full"
+                    wire:model="folderName"
+                    autofocus
+                />
+                <x-input-error for="folderName" class="mt-2" />
+            </div>
+        </x-slot>
+
+        <x-slot name="footer">
+            <x-secondary-button wire:click="closeEditFolderModal">
+                Cancel
+            </x-secondary-button>
+            <x-button wire:click="updateFolder" class="ml-3" no-spinner>
+                Update
             </x-button>
         </x-slot>
     </x-dialog-modal>

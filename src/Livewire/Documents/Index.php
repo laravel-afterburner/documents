@@ -3,6 +3,7 @@
 namespace Afterburner\Documents\Livewire\Documents;
 
 use Afterburner\Documents\Actions\CreateFolder;
+use Afterburner\Documents\Actions\UpdateFolder;
 use Afterburner\Documents\Actions\UploadDocument;
 use Afterburner\Documents\Models\Document;
 use Afterburner\Documents\Models\Folder;
@@ -36,8 +37,10 @@ class Index extends Component
 
     // Folder Modal
     public bool $showingFolderModal = false;
+    public bool $showingEditFolderModal = false;
     public bool $showingDeleteModal = false;
     public ?Folder $folderToDelete = null;
+    public ?Folder $folderToEdit = null;
     public $folderName = '';
 
     // Document Viewer
@@ -155,7 +158,6 @@ class Index extends Component
         $this->resetPage();
     }
 
-    #[On('open-upload-modal')]
     public function openUploadModal()
     {
         $this->showingUploadModal = true;
@@ -261,7 +263,6 @@ class Index extends Component
         }
     }
 
-    #[On('open-folder-modal')]
     public function openFolderModal()
     {
         $this->showingFolderModal = true;
@@ -294,6 +295,51 @@ class Index extends Component
         }
     }
 
+    public function openEditFolderModal(Folder $folder)
+    {
+        if (!Auth::user()->can('update', $folder)) {
+            abort(403, 'Access denied.');
+        }
+
+        $this->folderToEdit = $folder;
+        $this->folderName = $folder->name;
+        $this->showingEditFolderModal = true;
+    }
+
+    public function closeEditFolderModal()
+    {
+        $this->showingEditFolderModal = false;
+        $this->folderToEdit = null;
+        $this->reset(['folderName']);
+    }
+
+    public function updateFolder()
+    {
+        if (!$this->folderToEdit) {
+            return;
+        }
+
+        if (!Auth::user()->can('update', $this->folderToEdit)) {
+            abort(403, 'Access denied.');
+        }
+
+        $this->validate();
+
+        try {
+            app(UpdateFolder::class)->execute(
+                $this->folderToEdit,
+                ['name' => $this->folderName],
+                Auth::user()
+            );
+
+            $this->banner(__('Folder updated successfully.'));
+            $this->closeEditFolderModal();
+            $this->dispatch('folder-updated');
+        } catch (\Exception $e) {
+            $this->dangerBanner($e->getMessage());
+        }
+    }
+
     public function confirmDelete(Folder $folder)
     {
         $this->folderToDelete = $folder;
@@ -309,12 +355,16 @@ class Index extends Component
         try {
             // Check if folder has children or documents
             if ($this->folderToDelete->children()->count() > 0) {
-                $this->dangerBanner(__('Cannot delete folder with subfolders.'));
+                $this->dangerBanner(__('Cannot delete a folder with subfolders inside.'));
+                $this->showingDeleteModal = false;
+                $this->folderToDelete = null;
                 return;
             }
 
             if ($this->folderToDelete->documents()->count() > 0) {
-                $this->dangerBanner(__('Cannot delete folder with documents.'));
+                $this->dangerBanner(__('Cannot delete a folder with documents inside.'));
+                $this->showingDeleteModal = false;
+                $this->folderToDelete = null;
                 return;
             }
 
@@ -325,6 +375,8 @@ class Index extends Component
             $this->dispatch('folder-deleted');
         } catch (\Exception $e) {
             $this->dangerBanner($e->getMessage());
+            $this->showingDeleteModal = false;
+            $this->folderToDelete = null;
         }
     }
 
@@ -345,6 +397,7 @@ class Index extends Component
     }
 
     #[On('folder-created')]
+    #[On('folder-updated')]
     #[On('folder-deleted')]
     public function refreshFolders()
     {
@@ -355,6 +408,13 @@ class Index extends Component
     public function handleDocumentViewerClosed()
     {
         $this->viewingDocumentId = null;
+    }
+
+    #[On('document-updated')]
+    #[On('document-deleted')]
+    public function refreshDocuments()
+    {
+        // Component will re-render automatically
     }
 
     public function render()

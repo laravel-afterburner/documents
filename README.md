@@ -39,7 +39,7 @@ composer require league/flysystem-aws-s3-v3  # Required for R2 support
 Run the install command to automatically set up the package:
 
 ```bash
-php artisan documents:install
+php artisan afterburner:documents:install
 ```
 
 This command will:

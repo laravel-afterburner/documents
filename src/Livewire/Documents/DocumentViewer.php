@@ -9,10 +9,11 @@ use App\Traits\InteractsWithBanner;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
+use Spatie\LivewireFilepond\WithFilePond;
 
 class DocumentViewer extends Component
 {
-    use InteractsWithBanner;
+    use InteractsWithBanner, WithFilePond;
 
     public Document $document;
     public bool $showing = false;
@@ -94,6 +95,79 @@ class DocumentViewer extends Component
         $this->reset(['documentName', 'newFile']);
     }
 
+    /**
+     * Validate uploaded file (called by Spatie FilePond package).
+     * This follows the exact pattern from Spatie's README.
+     */
+    public function validateUploadedFile($response = null): bool
+    {
+        $maxFileSize = config('afterburner-documents.upload.max_file_size', 2147483648);
+        $allowedMimeTypes = config('afterburner-documents.upload.allowed_mime_types', []);
+
+        $rules = [
+            'documentName' => 'required|string|max:255',
+            'newFile' => [
+                'nullable',
+                'file',
+                'max:'.$maxFileSize,
+            ],
+        ];
+
+        if (!empty($allowedMimeTypes)) {
+            $rules['newFile'][] = 'mimetypes:'.implode(',', $allowedMimeTypes);
+        }
+
+        $this->validate($rules);
+
+        return true;
+    }
+
+    /**
+     * Process uploaded file after it's uploaded via Livewire.
+     * This is called automatically when newFile property is updated (after upload completes).
+     * This follows Spatie's intended pattern - process files in updated* method.
+     */
+    public function updatedNewFile()
+    {
+        if (!$this->newFile || !($this->newFile instanceof TemporaryUploadedFile)) {
+            return;
+        }
+
+        if (!Auth::user()->can('update', $this->document)) {
+            abort(403, 'Access denied.');
+        }
+
+        try {
+            $attributes = ['name' => $this->documentName];
+            $fileContent = file_get_contents($this->newFile->getRealPath());
+            $attributes['filename'] = $this->newFile->getClientOriginalName();
+            $attributes['mime_type'] = $this->newFile->getMimeType();
+            $attributes['size'] = $this->newFile->getSize();
+
+            app(UpdateDocument::class)->execute(
+                $this->document,
+                $attributes,
+                $fileContent,
+                Auth::user()
+            );
+
+            // Refresh document
+            $this->document->refresh();
+
+            // Reset file after processing
+            $this->reset(['newFile']);
+
+            // Close modal after processing
+            $this->closeEditModal();
+
+            $this->banner(__('Document updated successfully.'));
+            $this->dispatch('document-updated');
+        } catch (\Exception $e) {
+            $this->dangerBanner($e->getMessage());
+            $this->reset(['newFile']);
+        }
+    }
+
     public function updateDocument()
     {
         if (!Auth::user()->can('update', $this->document)) {
@@ -102,25 +176,21 @@ class DocumentViewer extends Component
 
         $this->validate([
             'documentName' => 'required|string|max:255',
-            'newFile' => 'nullable|file|max:'.config('afterburner-documents.upload.max_file_size', 2147483648),
         ]);
+
+        // Only update name if no file was uploaded (file upload is handled by updatedNewFile)
+        if ($this->newFile instanceof TemporaryUploadedFile) {
+            // File upload is handled automatically by updatedNewFile
+            return;
+        }
 
         try {
             $attributes = ['name' => $this->documentName];
-            $fileContent = null;
-
-            // If new file uploaded, get its content
-            if ($this->newFile instanceof TemporaryUploadedFile) {
-                $fileContent = file_get_contents($this->newFile->getRealPath());
-                $attributes['filename'] = $this->newFile->getClientOriginalName();
-                $attributes['mime_type'] = $this->newFile->getMimeType();
-                $attributes['size'] = $this->newFile->getSize();
-            }
 
             app(UpdateDocument::class)->execute(
                 $this->document,
                 $attributes,
-                $fileContent,
+                null, // No file content
                 Auth::user()
             );
 

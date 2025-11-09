@@ -72,6 +72,15 @@ class Document extends Model
     }
 
     /**
+     * Get the current version number of the document.
+     */
+    public function getCurrentVersionNumber(): ?int
+    {
+        $currentVersion = $this->currentVersion();
+        return $currentVersion ? $currentVersion->version_number : null;
+    }
+
+    /**
      * Get the storage path for the document.
      */
     public function getStoragePath(): string

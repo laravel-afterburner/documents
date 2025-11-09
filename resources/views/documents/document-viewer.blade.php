@@ -5,7 +5,14 @@
                 <div class="flex-shrink-0">
                     {!! $document->getIconSvg('w-6 h-6') !!}
                 </div>
-                <span>{{ $document->name }}</span>
+                <div class="flex items-center space-x-2">
+                    <span>{{ $document->name }}</span>
+                    @if($document->getCurrentVersionNumber())
+                        <span class="px-1.5 py-0.5 text-xs font-medium rounded bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                            v{{ $document->getCurrentVersionNumber() }}
+                        </span>
+                    @endif
+                </div>
             </div>
         </x-slot>
 
@@ -110,15 +117,14 @@
 
                 <div>
                     <x-label for="newFile" value="Upload New Version (Optional)" />
-                    <x-input
-                        id="newFile"
-                        type="file"
-                        class="mt-1 block w-full"
+                    <x-filepond::upload 
                         wire:model="newFile"
+                        :max-file-size="config('afterburner-documents.upload.max_file_size', 2147483648)"
+                        :accepted-file-types="config('afterburner-documents.upload.allowed_mime_types', [])"
                     />
                     <x-input-error for="newFile" class="mt-2" />
                     <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                        Leave empty to keep the current file. Uploading a new file will create a new version.
+                        Leave empty to keep the current file. Uploading a new file will create a new version and automatically update the document.
                     </p>
                 </div>
             </div>

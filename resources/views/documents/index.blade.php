@@ -3,11 +3,143 @@
     <div>
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             <!-- Breadcrumbs -->
-            @if($currentFolder)
-                <div class="mb-4">
-                    @include('afterburner-documents::components.breadcrumbs', ['folder' => $currentFolder])
+            <div class="mb-4">
+                @include('afterburner-documents::components.breadcrumbs', ['folder' => $currentFolder])
+            </div>
+
+            <!-- Filters -->
+            <div class="mb-6 bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
+                <!-- Filters Header -->
+                <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                    <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">
+                        Search & Filters
+                    </h3>
+                    <button
+                        type="button"
+                        wire:click="toggleFilters"
+                        class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600"
+                    >
+                        <span>{{ $showFilters ? 'Hide' : 'Show' }} Filters</span>
+                        <svg 
+                            class="ml-2 h-4 w-4 transition-transform {{ $showFilters ? 'rotate-180' : '' }}" 
+                            fill="none" 
+                            stroke="currentColor" 
+                            viewBox="0 0 24 24"
+                        >
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                    </button>
                 </div>
-            @endif
+
+                <!-- Filters Content -->
+                @if($showFilters)
+                    <div class="p-6">
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <!-- Search Query -->
+                            <div>
+                                <label for="searchQuery" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    Search
+                                </label>
+                                <input
+                                    type="text"
+                                    wire:model.live.debounce.300ms="searchQuery"
+                                    id="searchQuery"
+                                    placeholder="Search documents..."
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm"
+                                />
+                            </div>
+
+                            <!-- Folder Filter -->
+                            <div>
+                                <label for="folderFilter" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    Folder
+                                </label>
+                                <select
+                                    wire:model.live="folderFilter"
+                                    id="folderFilter"
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm"
+                                >
+                                    <option value="">All Folders</option>
+                                    @foreach($allFolders as $folderOption)
+                                        <option value="{{ $folderOption->id }}">{{ $folderOption->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <!-- Status Filter -->
+                            <div>
+                                <label for="statusFilter" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    Status
+                                </label>
+                                <select
+                                    wire:model.live="statusFilter"
+                                    id="statusFilter"
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm"
+                                >
+                                    <option value="">All Statuses</option>
+                                    @foreach($statuses as $status)
+                                        <option value="{{ $status }}">{{ ucfirst($status) }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <!-- MIME Type Filter -->
+                            <div>
+                                <label for="mimeTypeFilter" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    File Type
+                                </label>
+                                <select
+                                    wire:model.live="mimeTypeFilter"
+                                    id="mimeTypeFilter"
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm"
+                                >
+                                    <option value="">All Types</option>
+                                    @foreach($mimeTypes as $mimeType)
+                                        <option value="{{ $mimeType }}">{{ $mimeType }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <!-- Date From -->
+                            <div>
+                                <label for="dateFrom" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    From Date
+                                </label>
+                                <input
+                                    type="date"
+                                    wire:model.live="dateFrom"
+                                    id="dateFrom"
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm"
+                                />
+                            </div>
+
+                            <!-- Date To -->
+                            <div>
+                                <label for="dateTo" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    To Date
+                                </label>
+                                <input
+                                    type="date"
+                                    wire:model.live="dateTo"
+                                    id="dateTo"
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm"
+                                />
+                            </div>
+
+                            <!-- Clear Filters Button -->
+                            <div class="flex items-end">
+                                <button
+                                    wire:click="clearFilters"
+                                    type="button"
+                                    class="w-full inline-flex justify-center items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600"
+                                >
+                                    Clear Filters
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                @endif
+            </div>
 
             <!-- Action Buttons -->
             <div class="mb-6 flex gap-2 justify-end">
@@ -29,113 +161,6 @@
                 @endcan
             </div>
 
-            <!-- Filters -->
-            <div class="mb-6 bg-white dark:bg-gray-800 shadow rounded-lg p-6">
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <!-- Search Query -->
-                    <div>
-                        <label for="searchQuery" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                            Search
-                        </label>
-                        <input
-                            type="text"
-                            wire:model.live.debounce.300ms="searchQuery"
-                            id="searchQuery"
-                            placeholder="Search documents..."
-                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm"
-                        />
-                    </div>
-
-                    <!-- Folder Filter -->
-                    <div>
-                        <label for="folderFilter" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                            Folder
-                        </label>
-                        <select
-                            wire:model.live="folderFilter"
-                            id="folderFilter"
-                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm"
-                        >
-                            <option value="">All Folders</option>
-                            @foreach($allFolders as $folderOption)
-                                <option value="{{ $folderOption->id }}">{{ $folderOption->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-
-                    <!-- Status Filter -->
-                    <div>
-                        <label for="statusFilter" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                            Status
-                        </label>
-                        <select
-                            wire:model.live="statusFilter"
-                            id="statusFilter"
-                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm"
-                        >
-                            <option value="">All Statuses</option>
-                            @foreach($statuses as $status)
-                                <option value="{{ $status }}">{{ ucfirst($status) }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-
-                    <!-- MIME Type Filter -->
-                    <div>
-                        <label for="mimeTypeFilter" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                            File Type
-                        </label>
-                        <select
-                            wire:model.live="mimeTypeFilter"
-                            id="mimeTypeFilter"
-                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm"
-                        >
-                            <option value="">All Types</option>
-                            @foreach($mimeTypes as $mimeType)
-                                <option value="{{ $mimeType }}">{{ $mimeType }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-
-                    <!-- Date From -->
-                    <div>
-                        <label for="dateFrom" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                            From Date
-                        </label>
-                        <input
-                            type="date"
-                            wire:model.live="dateFrom"
-                            id="dateFrom"
-                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm"
-                        />
-                    </div>
-
-                    <!-- Date To -->
-                    <div>
-                        <label for="dateTo" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                            To Date
-                        </label>
-                        <input
-                            type="date"
-                            wire:model.live="dateTo"
-                            id="dateTo"
-                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm"
-                        />
-                    </div>
-
-                    <!-- Clear Filters Button -->
-                    <div class="flex items-end">
-                        <button
-                            wire:click="clearFilters"
-                            type="button"
-                            class="w-full inline-flex justify-center items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600"
-                        >
-                            Clear Filters
-                        </button>
-                    </div>
-                </div>
-            </div>
-
             <!-- Documents and Folders List -->
             <div class="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
                 @if($folders->count() > 0 || $documents->count() > 0)
@@ -143,19 +168,103 @@
                         <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                             <thead class="bg-gray-50 dark:bg-gray-900">
                                 <tr>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                        Name
+                                    <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                        <button 
+                                            type="button"
+                                            wire:click="sortByName"
+                                            class="flex items-center space-x-1 hover:text-gray-700 dark:hover:text-gray-300 focus:outline-none"
+                                        >
+                                            <span>Name</span>
+                                            @if($folderSortBy === 'name' || $documentSortBy === 'name')
+                                                @if(($folderSortBy === 'name' && $folderSortDirection === 'asc') || ($documentSortBy === 'name' && $documentSortDirection === 'asc'))
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path>
+                                                    </svg>
+                                                @else
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                                    </svg>
+                                                @endif
+                                            @else
+                                                <svg class="w-4 h-4 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path>
+                                                </svg>
+                                            @endif
+                                        </button>
                                     </th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                        Owner
+                                    <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                        <button 
+                                            type="button"
+                                            wire:click="sortByOwner"
+                                            class="flex items-center space-x-1 hover:text-gray-700 dark:hover:text-gray-300 focus:outline-none"
+                                        >
+                                            <span>Owner</span>
+                                            @if($folderSortBy === 'created_by' || $documentSortBy === 'uploaded_by')
+                                                @if(($folderSortBy === 'created_by' && $folderSortDirection === 'asc') || ($documentSortBy === 'uploaded_by' && $documentSortDirection === 'asc'))
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path>
+                                                    </svg>
+                                                @else
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                                    </svg>
+                                                @endif
+                                            @else
+                                                <svg class="w-4 h-4 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path>
+                                                </svg>
+                                            @endif
+                                        </button>
                                     </th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                        Modified
+                                    <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                        <button 
+                                            type="button"
+                                            wire:click="sortByModified"
+                                            class="flex items-center space-x-1 hover:text-gray-700 dark:hover:text-gray-300 focus:outline-none"
+                                        >
+                                            <span>Modified</span>
+                                            @if($folderSortBy === 'updated_at' || $documentSortBy === 'created_at')
+                                                @if(($folderSortBy === 'updated_at' && $folderSortDirection === 'asc') || ($documentSortBy === 'created_at' && $documentSortDirection === 'asc'))
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path>
+                                                    </svg>
+                                                @else
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                                    </svg>
+                                                @endif
+                                            @else
+                                                <svg class="w-4 h-4 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path>
+                                                </svg>
+                                            @endif
+                                        </button>
                                     </th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                        Size
+                                    <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                        <button 
+                                            type="button"
+                                            wire:click="sortDocuments('size')"
+                                            class="flex items-center space-x-1 hover:text-gray-700 dark:hover:text-gray-300 focus:outline-none"
+                                        >
+                                            <span>Size</span>
+                                            @if($documentSortBy === 'size')
+                                                @if($documentSortDirection === 'asc')
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path>
+                                                    </svg>
+                                                @else
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                                    </svg>
+                                                @endif
+                                            @else
+                                                <svg class="w-4 h-4 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path>
+                                                </svg>
+                                            @endif
+                                        </button>
                                     </th>
-                                    <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                    <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                                         Actions
                                     </th>
                                 </tr>
@@ -164,9 +273,10 @@
                                 @foreach($folders as $folder)
                                     <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors group">
                                         <td class="px-6 py-4 whitespace-nowrap">
-                                            <a
-                                                href="{{ route('teams.documents.folder', [$folder->team, $folder->slug]) }}"
-                                                class="flex items-center space-x-3 cursor-pointer"
+                                            <button
+                                                type="button"
+                                                wire:click="navigateToFolder({{ $folder->id }})"
+                                                class="flex items-center space-x-3 cursor-pointer w-full text-left"
                                             >
                                                 <svg class="w-6 h-6 text-yellow-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                                                     <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"></path>
@@ -176,7 +286,7 @@
                                                         {{ $folder->name }}
                                                     </p>
                                                 </div>
-                                            </a>
+                                            </button>
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                                             {{ $folder->creator->name ?? 'N/A' }}
@@ -185,15 +295,25 @@
                                             {{ $folder->updated_at->format('M d, Y') }}
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                            {{ $folder->documents()->count() }} items
+                                            {{ $folder->getTotalDocumentsCount() }} items
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                             <div class="flex items-center justify-end space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                                 @can('update', $folder)
                                                     <button
                                                         type="button"
+                                                        wire:click="openMoveFolderModal({{ $folder->id }})"
+                                                        class="p-1 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded"
+                                                        title="Move folder"
+                                                    >
+                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
+                                                        </svg>
+                                                    </button>
+                                                    <button
+                                                        type="button"
                                                         wire:click="openEditFolderModal({{ $folder->id }})"
-                                                        class="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded"
+                                                        class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded"
                                                         title="Edit folder"
                                                     >
                                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -205,7 +325,7 @@
                                                     <button
                                                         type="button"
                                                         wire:click="confirmDelete({{ $folder->id }})"
-                                                        class="p-1.5 text-gray-400 hover:text-red-600 dark:hover:text-red-400 rounded"
+                                                        class="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 rounded"
                                                         title="Delete folder"
                                                     >
                                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -229,9 +349,16 @@
                                             >
                                                 {!! $document->getIconSvg('w-6 h-6') !!}
                                                 <div class="flex-1 min-w-0">
-                                                    <p class="text-sm font-medium text-gray-900 dark:text-gray-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 truncate">
-                                                        {{ $document->name }}
-                                                    </p>
+                                                    <div class="flex items-center space-x-2">
+                                                        <p class="text-sm font-medium text-gray-900 dark:text-gray-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 truncate">
+                                                            {{ $document->name }}
+                                                        </p>
+                                                        @if($document->getCurrentVersionNumber())
+                                                            <span class="px-1.5 py-0.5 text-xs font-medium rounded bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                                                                v{{ $document->getCurrentVersionNumber() }}
+                                                            </span>
+                                                        @endif
+                                                    </div>
                                                     <p class="text-xs text-gray-500 dark:text-gray-400 truncate">
                                                         {{ $document->filename }}
                                                     </p>
@@ -262,8 +389,18 @@
                                                 @can('update', $document)
                                                     <button
                                                         type="button"
+                                                        wire:click="openMoveDocumentModal({{ $document->id }})"
+                                                        class="p-1 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded"
+                                                        title="Move document"
+                                                    >
+                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
+                                                        </svg>
+                                                    </button>
+                                                    <button
+                                                        type="button"
                                                         wire:click="openEditDocumentModal({{ $document->id }})"
-                                                        class="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded"
+                                                        class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded"
                                                         title="Edit document"
                                                     >
                                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -274,7 +411,7 @@
                                                 @can('download', $document)
                                                     <a
                                                         href="{{ route('teams.documents.download', [$document->team, $document]) }}"
-                                                        class="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded"
+                                                        class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded"
                                                         title="Download document"
                                                     >
                                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -286,7 +423,7 @@
                                                     <button
                                                         type="button"
                                                         wire:click="confirmDeleteDocument({{ $document->id }})"
-                                                        class="p-1.5 text-gray-400 hover:text-red-600 dark:hover:text-red-400 rounded"
+                                                        class="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 rounded"
                                                         title="Delete document"
                                                     >
                                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -482,6 +619,169 @@
             </x-danger-button>
         </x-slot>
     </x-confirmation-modal>
+
+    <!-- Move Document Modal -->
+    <x-dialog-modal wire:model.live="showingMoveDocumentModal" maxWidth="lg">
+        <x-slot name="title">
+            Move Document
+        </x-slot>
+
+        <x-slot name="content">
+            @if($documentToMove)
+                <div class="space-y-4">
+                    <!-- Current Document Info -->
+                    <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+                        <div class="flex items-center space-x-3">
+                            {!! $documentToMove->getIconSvg('w-6 h-6') !!}
+                            <div>
+                                <p class="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                    {{ $documentToMove->name }}
+                                </p>
+                                <p class="text-xs text-gray-500 dark:text-gray-400">
+                                    Current location: 
+                                    @if($documentToMove->folder)
+                                        @foreach($documentToMove->folder->getPath() as $pathFolder)
+                                            {{ $pathFolder->name }}@if(!$loop->last) / @endif
+                                        @endforeach
+                                    @else
+                                        Root
+                                    @endif
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Folder Selection -->
+                    <div>
+                        <x-label value="Select Destination Folder" />
+                        <div class="mt-2 border border-gray-200 dark:border-gray-700 rounded-lg p-4 max-h-96 overflow-y-auto">
+                            <!-- Root Option -->
+                            <label class="flex items-center cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 rounded px-2 py-1.5 transition-colors mb-2 {{ ($selectedTargetFolderId === null || $selectedTargetFolderId === '') ? 'bg-indigo-50 dark:bg-indigo-900/20' : '' }}">
+                                <input 
+                                    type="radio" 
+                                    wire:model="selectedTargetFolderId" 
+                                    value=""
+                                    class="mr-3 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 dark:border-gray-600"
+                                >
+                                <div class="flex items-center flex-1">
+                                    <svg class="w-5 h-5 text-gray-400 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path>
+                                    </svg>
+                                    <span class="text-sm font-medium text-gray-900 dark:text-gray-100">Root</span>
+                                </div>
+                            </label>
+
+                            <!-- Folder Tree -->
+                            @if($folderTree && $folderTree->count() > 0)
+                                @include('afterburner-documents::components.folder-tree', [
+                                    'folders' => $folderTree,
+                                    'selectedId' => $selectedTargetFolderId
+                                ])
+                            @else
+                                <p class="text-sm text-gray-500 dark:text-gray-400 py-4 text-center">
+                                    No folders available. Select Root to move to the top level.
+                                </p>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+            @endif
+        </x-slot>
+
+        <x-slot name="footer">
+            <x-secondary-button wire:click="closeMoveDocumentModal" wire:loading.attr="disabled">
+                Cancel
+            </x-secondary-button>
+            <x-button wire:click="moveDocument" class="ml-3" wire:loading.attr="disabled">
+                Move Document
+            </x-button>
+        </x-slot>
+    </x-dialog-modal>
+
+    <!-- Move Folder Modal -->
+    <x-dialog-modal wire:model.live="showingMoveFolderModal" maxWidth="lg">
+        <x-slot name="title">
+            Move Folder
+        </x-slot>
+
+        <x-slot name="content">
+            @if($folderToMove)
+                <div class="space-y-4">
+                    <!-- Current Folder Info -->
+                    <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+                        <div class="flex items-center space-x-3">
+                            <svg class="w-6 h-6 text-yellow-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"></path>
+                            </svg>
+                            <div>
+                                <p class="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                    {{ $folderToMove->name }}
+                                </p>
+                                <p class="text-xs text-gray-500 dark:text-gray-400">
+                                    Current location: 
+                                    @if($folderToMove->parent)
+                                        @foreach($folderToMove->parent->getPath() as $pathFolder)
+                                            {{ $pathFolder->name }}@if(!$loop->last) / @endif
+                                        @endforeach
+                                    @else
+                                        Root
+                                    @endif
+                                </p>
+                                @if(count($folderToMove->getDescendantIds()) > 0 || $folderToMove->getTotalDocumentsCount() > 0)
+                                    <p class="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                                        This folder contains {{ count($folderToMove->getDescendantIds()) }} subfolder(s) and {{ $folderToMove->getTotalDocumentsCount() }} document(s).
+                                    </p>
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Folder Selection -->
+                    <div>
+                        <x-label value="Select Destination Folder" />
+                        <div class="mt-2 border border-gray-200 dark:border-gray-700 rounded-lg p-4 max-h-96 overflow-y-auto">
+                            <!-- Root Option -->
+                            <label class="flex items-center cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 rounded px-2 py-1.5 transition-colors mb-2 {{ ($selectedTargetFolderId === null || $selectedTargetFolderId === '') ? 'bg-indigo-50 dark:bg-indigo-900/20' : '' }}">
+                                <input 
+                                    type="radio" 
+                                    wire:model="selectedTargetFolderId" 
+                                    value=""
+                                    class="mr-3 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 dark:border-gray-600"
+                                >
+                                <div class="flex items-center flex-1">
+                                    <svg class="w-5 h-5 text-gray-400 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path>
+                                    </svg>
+                                    <span class="text-sm font-medium text-gray-900 dark:text-gray-100">Root</span>
+                                </div>
+                            </label>
+
+                            <!-- Folder Tree -->
+                            @if($folderTree && $folderTree->count() > 0)
+                                @include('afterburner-documents::components.folder-tree', [
+                                    'folders' => $folderTree,
+                                    'selectedId' => $selectedTargetFolderId
+                                ])
+                            @else
+                                <p class="text-sm text-gray-500 dark:text-gray-400 py-4 text-center">
+                                    No other folders available. Select Root to move to the top level.
+                                </p>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+            @endif
+        </x-slot>
+
+        <x-slot name="footer">
+            <x-secondary-button wire:click="closeMoveFolderModal" wire:loading.attr="disabled">
+                Cancel
+            </x-secondary-button>
+            <x-button wire:click="moveFolder" class="ml-3" wire:loading.attr="disabled">
+                Move Folder
+            </x-button>
+        </x-slot>
+    </x-dialog-modal>
 
     <!-- Document Viewer -->
     @if($viewingDocumentId)

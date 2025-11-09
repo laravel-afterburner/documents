@@ -113,6 +113,32 @@ class Folder extends Model
     }
 
     /**
+     * Get all descendant folder IDs recursively.
+     */
+    public function getDescendantIds(): array
+    {
+        $descendantIds = [];
+        $children = static::where('parent_id', $this->id)->get();
+
+        foreach ($children as $child) {
+            $descendantIds[] = $child->id;
+            $descendantIds = array_merge($descendantIds, $child->getDescendantIds());
+        }
+
+        return $descendantIds;
+    }
+
+    /**
+     * Get the total count of documents in this folder and all nested folders.
+     */
+    public function getTotalDocumentsCount(): int
+    {
+        $folderIds = array_merge([$this->id], $this->getDescendantIds());
+        
+        return Document::whereIn('folder_id', $folderIds)->count();
+    }
+
+    /**
      * Boot the model.
      */
     protected static function boot()

@@ -10,9 +10,16 @@
             <div class="flex items-center space-x-2">
                 {!! $document->getIconSvg() !!}
                 <div class="flex-1 min-w-0">
-                    <p class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
-                        {{ $document->name }}
-                    </p>
+                    <div class="flex items-center space-x-2">
+                        <p class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                            {{ $document->name }}
+                        </p>
+                        @if($document->getCurrentVersionNumber())
+                            <span class="px-1.5 py-0.5 text-xs font-medium rounded bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                                v{{ $document->getCurrentVersionNumber() }}
+                            </span>
+                        @endif
+                    </div>
                     <p class="text-xs text-gray-500 dark:text-gray-400 truncate">
                         {{ $document->filename }}
                     </p>

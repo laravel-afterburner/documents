@@ -1,6 +1,11 @@
 <x-dialog-modal wire:model.live="showing" maxWidth="4xl">
     <x-slot name="title">
-        {{ $document->name }}
+        <div class="flex items-center space-x-2">
+            <div class="flex-shrink-0">
+                {!! $document->getIconSvg('w-6 h-6') !!}
+            </div>
+            <span>{{ $document->name }}</span>
+        </div>
     </x-slot>
 
     <x-slot name="content">
@@ -49,7 +54,7 @@
                                 <div>
                                     <span class="text-sm font-medium">Version {{ $version->version_number }}</span>
                                     <span class="text-xs text-gray-500 dark:text-gray-400 ml-2">
-                                        {{ $version->created_at->format('Y-m-d H:i') }} by {{ $version->creator->name }}
+                                        {{ $version->getFormattedCreatedAt('Y-m-d H:i') }} by {{ $version->creator->name }}
                                     </span>
                                 </div>
                             </div>

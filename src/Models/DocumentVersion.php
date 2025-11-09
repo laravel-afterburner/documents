@@ -59,5 +59,37 @@ class DocumentVersion extends Model
 
         return '';
     }
+
+    /**
+     * Get the timezone for this version's document's team, or fall back to app timezone.
+     */
+    public function getTimezone(): string
+    {
+        $document = $this->document;
+        
+        if (!$document) {
+            return config('app.timezone', 'UTC');
+        }
+        
+        $team = $document->team;
+        
+        if ($team && isset($team->timezone) && !empty($team->timezone)) {
+            return $team->timezone;
+        }
+        
+        if ($team && isset($team->time_zone) && !empty($team->time_zone)) {
+            return $team->time_zone;
+        }
+        
+        return config('app.timezone', 'UTC');
+    }
+
+    /**
+     * Format the created_at timestamp in the team's timezone.
+     */
+    public function getFormattedCreatedAt(string $format = 'Y-m-d H:i'): string
+    {
+        return $this->created_at->setTimezone($this->getTimezone())->format($format);
+    }
 }
 

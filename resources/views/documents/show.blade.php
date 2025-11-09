@@ -1,26 +1,8 @@
 <x-app-layout title="Documents">
     <x-slot name="header">
-        <div class="flex items-center justify-between">
-            <h2 class="text-xl font-semibold leading-tight text-gray-800 dark:text-gray-200">
-                Documents
-            </h2>
-            <div class="flex gap-2" x-data>
-                @can('create', [\Afterburner\Documents\Models\Document::class, $team])
-                    <x-button
-                        @click="$dispatch('open-upload-modal')"
-                    >
-                        Upload
-                    </x-button>
-                @endcan
-                @can('create', [\Afterburner\Documents\Models\Folder::class, $team])
-                    <x-button
-                        @click="$dispatch('open-folder-modal')"
-                    >
-                        New Folder
-                    </x-button>
-                @endcan
-            </div>
-        </div>
+        <h2 class="text-xl font-semibold leading-tight text-gray-800 dark:text-gray-200">
+            Documents
+        </h2>
     </x-slot>
 
     <div>

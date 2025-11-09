@@ -40,6 +40,9 @@ class Index extends Component
     public ?Folder $folderToDelete = null;
     public $folderName = '';
 
+    // Document Viewer
+    public ?int $viewingDocumentId = null;
+
     protected function rules(): array
     {
         $maxFileSize = config('afterburner-documents.upload.max_file_size', 2147483648);
@@ -331,11 +334,27 @@ class Index extends Component
         $this->folderToDelete = null;
     }
 
+    public function openDocumentViewer($documentId)
+    {
+        $this->viewingDocumentId = $documentId;
+    }
+
+    public function closeDocumentViewer()
+    {
+        $this->viewingDocumentId = null;
+    }
+
     #[On('folder-created')]
     #[On('folder-deleted')]
     public function refreshFolders()
     {
         // Component will re-render automatically
+    }
+
+    #[On('document-viewer-closed')]
+    public function handleDocumentViewerClosed()
+    {
+        $this->viewingDocumentId = null;
     }
 
     public function render()
@@ -381,7 +400,7 @@ class Index extends Component
         }
 
         $folders = $foldersQuery->orderBy('name')->get();
-        $documents = $documentsQuery->orderBy('created_at', 'desc')->paginate(25);
+        $documents = $documentsQuery->with('team')->orderBy('created_at', 'desc')->paginate(25);
 
         // Get current folder for breadcrumbs
         $currentFolder = $this->currentFolderId

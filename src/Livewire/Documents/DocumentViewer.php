@@ -10,14 +10,20 @@ class DocumentViewer extends Component
 {
     public Document $document;
     public bool $showing = false;
+    public bool $autoOpen = false;
 
-    public function mount(Document $document)
+    public function mount(Document $document, bool $autoOpen = false)
     {
         $this->document = $document;
+        $this->autoOpen = $autoOpen;
 
         // Check permission
         if (!Auth::user()->can('view', $document)) {
             abort(403, 'Access denied.');
+        }
+
+        if ($autoOpen) {
+            $this->showing = true;
         }
     }
 
@@ -29,6 +35,7 @@ class DocumentViewer extends Component
     public function close()
     {
         $this->showing = false;
+        $this->dispatch('document-viewer-closed');
     }
 
     public function download()
@@ -55,7 +62,9 @@ class DocumentViewer extends Component
 
     public function render()
     {
-        $versions = $this->document->versions()->with('creator')->get();
+        $versions = $this->document->versions()
+            ->with(['creator', 'document.team'])
+            ->get();
 
         return view('afterburner-documents::documents.document-viewer', [
             'versions' => $versions,

@@ -1,6 +1,6 @@
 <div>
 
-    <div wire:poll.5s class="py-12">
+    <div wire:poll.5s>
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             <!-- Breadcrumbs -->
             @if($currentFolder)
@@ -8,6 +8,24 @@
                     @include('afterburner-documents::components.breadcrumbs', ['folder' => $currentFolder])
                 </div>
             @endif
+
+            <!-- Action Buttons -->
+            <div class="mb-6 flex gap-2 justify-end" x-data>
+                @can('create', [\Afterburner\Documents\Models\Document::class, $team])
+                    <x-button
+                        @click="$dispatch('open-upload-modal')"
+                    >
+                        Upload Document
+                    </x-button>
+                @endcan
+                @can('create', [\Afterburner\Documents\Models\Folder::class, $team])
+                    <x-button
+                        @click="$dispatch('open-folder-modal')"
+                    >
+                        New Folder
+                    </x-button>
+                @endcan
+            </div>
 
             <!-- Filters -->
             <div class="mb-6 bg-white dark:bg-gray-800 shadow rounded-lg p-6">
@@ -217,5 +235,15 @@
             </x-danger-button>
         </x-slot>
     </x-confirmation-modal>
+
+    <!-- Document Viewer -->
+    @if($viewingDocumentId)
+        @php
+            $viewingDocument = \Afterburner\Documents\Models\Document::find($viewingDocumentId);
+        @endphp
+        @if($viewingDocument)
+            @livewire('documents.document-viewer', ['document' => $viewingDocument, 'autoOpen' => true], key('document-viewer-'.$viewingDocumentId))
+        @endif
+    @endif
 </div>
 

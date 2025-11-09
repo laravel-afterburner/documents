@@ -3,6 +3,8 @@
 namespace Afterburner\Documents\Livewire\Documents;
 
 use Afterburner\Documents\Actions\CreateFolder;
+use Afterburner\Documents\Actions\DeleteDocument;
+use Afterburner\Documents\Actions\UpdateDocument;
 use Afterburner\Documents\Actions\UpdateFolder;
 use Afterburner\Documents\Actions\UploadDocument;
 use Afterburner\Documents\Models\Document;
@@ -46,6 +48,14 @@ class Index extends Component
     // Document Viewer
     public ?int $viewingDocumentId = null;
 
+    // Document Edit/Delete
+    public bool $showingEditDocumentModal = false;
+    public bool $showingDeleteDocumentModal = false;
+    public ?Document $documentToEdit = null;
+    public ?Document $documentToDelete = null;
+    public $documentName = '';
+    public $newDocumentFile = null;
+
     protected function rules(): array
     {
         $maxFileSize = config('afterburner-documents.upload.max_file_size', 2147483648);
@@ -53,15 +63,18 @@ class Index extends Component
 
         $rules = [
             'folderName' => 'required|string|max:255',
+            'documentName' => 'required|string|max:255',
             'uploadFiles.*' => [
                 'required',
                 'file',
                 'max:'.$maxFileSize,
             ],
+            'newDocumentFile' => 'nullable|file|max:'.$maxFileSize,
         ];
 
         if (!empty($allowedMimeTypes)) {
             $rules['uploadFiles.*'][] = 'mimetypes:'.implode(',', $allowedMimeTypes);
+            $rules['newDocumentFile'][] = 'mimetypes:'.implode(',', $allowedMimeTypes);
         }
 
         return $rules;
@@ -417,6 +430,106 @@ class Index extends Component
         // Component will re-render automatically
     }
 
+    public function openEditDocumentModal(Document $document)
+    {
+        if (!Auth::user()->can('update', $document)) {
+            abort(403, 'Access denied.');
+        }
+
+        $this->documentToEdit = $document;
+        $this->documentName = $document->name;
+        $this->newDocumentFile = null;
+        $this->showingEditDocumentModal = true;
+    }
+
+    public function closeEditDocumentModal()
+    {
+        $this->showingEditDocumentModal = false;
+        $this->documentToEdit = null;
+        $this->reset(['documentName', 'newDocumentFile']);
+    }
+
+    public function updateDocument()
+    {
+        if (!$this->documentToEdit) {
+            return;
+        }
+
+        if (!Auth::user()->can('update', $this->documentToEdit)) {
+            abort(403, 'Access denied.');
+        }
+
+        $this->validate();
+
+        try {
+            $attributes = ['name' => $this->documentName];
+            $fileContent = null;
+
+            // If new file uploaded, get its content
+            if ($this->newDocumentFile instanceof TemporaryUploadedFile) {
+                $fileContent = file_get_contents($this->newDocumentFile->getRealPath());
+                $attributes['filename'] = $this->newDocumentFile->getClientOriginalName();
+                $attributes['mime_type'] = $this->newDocumentFile->getMimeType();
+                $attributes['size'] = $this->newDocumentFile->getSize();
+            }
+
+            app(UpdateDocument::class)->execute(
+                $this->documentToEdit,
+                $attributes,
+                $fileContent,
+                Auth::user()
+            );
+
+            $this->banner(__('Document updated successfully.'));
+            $this->closeEditDocumentModal();
+            $this->dispatch('document-updated');
+        } catch (\Exception $e) {
+            $this->dangerBanner($e->getMessage());
+        }
+    }
+
+    public function confirmDeleteDocument(Document $document)
+    {
+        if (!Auth::user()->can('delete', $document)) {
+            abort(403, 'Access denied.');
+        }
+
+        $this->documentToDelete = $document;
+        $this->showingDeleteDocumentModal = true;
+    }
+
+    public function cancelDeleteDocument()
+    {
+        $this->showingDeleteDocumentModal = false;
+        $this->documentToDelete = null;
+    }
+
+    public function deleteDocument()
+    {
+        if (!$this->documentToDelete) {
+            return;
+        }
+
+        if (!Auth::user()->can('delete', $this->documentToDelete)) {
+            abort(403, 'Access denied.');
+        }
+
+        try {
+            app(DeleteDocument::class)->execute(
+                $this->documentToDelete,
+                Auth::user(),
+                false // Soft delete
+            );
+
+            $this->banner(__('Document deleted successfully.'));
+            $this->showingDeleteDocumentModal = false;
+            $this->documentToDelete = null;
+            $this->dispatch('document-deleted');
+        } catch (\Exception $e) {
+            $this->dangerBanner($e->getMessage());
+        }
+    }
+
     public function render()
     {
         $team = \App\Models\Team::findOrFail($this->teamId);
@@ -459,8 +572,8 @@ class Index extends Component
             $documentsQuery->where('created_at', '<=', $this->dateTo);
         }
 
-        $folders = $foldersQuery->orderBy('name')->get();
-        $documents = $documentsQuery->with('team')->orderBy('created_at', 'desc')->paginate(25);
+        $folders = $foldersQuery->with('creator')->orderBy('name')->get();
+        $documents = $documentsQuery->with(['team', 'uploader'])->orderBy('created_at', 'desc')->paginate(25);
 
         // Get current folder for breadcrumbs
         $currentFolder = $this->currentFolderId

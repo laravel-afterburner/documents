@@ -155,6 +155,7 @@
                     <x-button
                         wire:click="openFolderModal"
                         no-spinner
+                        class="mr-3 sm:mr-0"
                     >
                         New Folder
                     </x-button>
@@ -498,12 +499,14 @@
         </x-slot>
 
         <x-slot name="footer">
-            <x-secondary-button wire:click="closeFolderModal">
-                Cancel
-            </x-secondary-button>
-            <x-button wire:click="createFolder" class="ml-3" no-spinner>
-                Create
-            </x-button>
+            <div class="flex flex-row justify-end gap-3 w-full">
+                <x-secondary-button wire:click="closeFolderModal">
+                    Cancel
+                </x-secondary-button>
+                <x-button wire:click="createFolder" no-spinner>
+                    Create
+                </x-button>
+            </div>
         </x-slot>
     </x-dialog-modal>
 
@@ -528,12 +531,14 @@
         </x-slot>
 
         <x-slot name="footer">
-            <x-secondary-button wire:click="closeEditFolderModal">
-                Cancel
-            </x-secondary-button>
-            <x-button wire:click="updateFolder" class="ml-3" no-spinner>
-                Update
-            </x-button>
+            <div class="flex flex-row justify-end gap-3 w-full">
+                <x-secondary-button wire:click="closeEditFolderModal">
+                    Cancel
+                </x-secondary-button>
+                <x-button wire:click="updateFolder" no-spinner>
+                    Update
+                </x-button>
+            </div>
         </x-slot>
     </x-dialog-modal>
 
@@ -591,12 +596,14 @@
         </x-slot>
 
         <x-slot name="footer">
-            <x-secondary-button wire:click="closeEditDocumentModal">
-                Cancel
-            </x-secondary-button>
-            <x-button wire:click="updateDocument" class="ml-3" no-spinner>
-                Update
-            </x-button>
+            <div class="flex flex-row justify-end gap-3 w-full">
+                <x-secondary-button wire:click="closeEditDocumentModal">
+                    Cancel
+                </x-secondary-button>
+                <x-button wire:click="updateDocument" no-spinner>
+                    Update
+                </x-button>
+            </div>
         </x-slot>
     </x-dialog-modal>
 
@@ -689,12 +696,14 @@
         </x-slot>
 
         <x-slot name="footer">
-            <x-secondary-button wire:click="closeMoveDocumentModal" wire:loading.attr="disabled">
-                Cancel
-            </x-secondary-button>
-            <x-button wire:click="moveDocument" class="ml-3" wire:loading.attr="disabled">
-                Move Document
-            </x-button>
+            <div class="flex flex-row justify-end gap-3 w-full">
+                <x-secondary-button wire:click="closeMoveDocumentModal" wire:loading.attr="disabled">
+                    Cancel
+                </x-secondary-button>
+                <x-button wire:click="moveDocument" wire:loading.attr="disabled">
+                    Move Document
+                </x-button>
+            </div>
         </x-slot>
     </x-dialog-modal>
 
@@ -774,12 +783,14 @@
         </x-slot>
 
         <x-slot name="footer">
-            <x-secondary-button wire:click="closeMoveFolderModal" wire:loading.attr="disabled">
-                Cancel
-            </x-secondary-button>
-            <x-button wire:click="moveFolder" class="ml-3" wire:loading.attr="disabled">
-                Move Folder
-            </x-button>
+            <div class="flex flex-row justify-end gap-3 w-full">
+                <x-secondary-button wire:click="closeMoveFolderModal" wire:loading.attr="disabled">
+                    Cancel
+                </x-secondary-button>
+                <x-button wire:click="moveFolder" wire:loading.attr="disabled">
+                    Move Folder
+                </x-button>
+            </div>
         </x-slot>
     </x-dialog-modal>
 

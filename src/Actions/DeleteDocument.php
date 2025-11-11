@@ -20,6 +20,14 @@ class DeleteDocument
     public function execute(Document $document, User $user, bool $permanent = false): bool
     {
         return DB::transaction(function () use ($document, $user, $permanent) {
+            // Check if document is protected by retention
+            if ($document->isRetentionProtected()) {
+                $expiresAt = $document->retention_expires_at->format('Y-m-d H:i:s');
+                throw new \Exception(
+                    "Cannot delete document '{$document->name}'. It is protected by retention until {$expiresAt}."
+                );
+            }
+
             // Create audit log before deletion
             AuditLog::create([
                 'user_id' => $user->id,

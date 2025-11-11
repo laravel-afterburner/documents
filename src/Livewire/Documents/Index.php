@@ -2,13 +2,17 @@
 
 namespace Afterburner\Documents\Livewire\Documents;
 
+use Afterburner\Documents\Actions\AssignRetentionTag;
 use Afterburner\Documents\Actions\CreateFolder;
+use Afterburner\Documents\Actions\CreateRetentionTag;
 use Afterburner\Documents\Actions\DeleteDocument;
 use Afterburner\Documents\Actions\UpdateDocument;
 use Afterburner\Documents\Actions\UpdateFolder;
+use Afterburner\Documents\Actions\UpdateRetentionTag;
 use Afterburner\Documents\Actions\UploadDocument;
 use Afterburner\Documents\Models\Document;
 use Afterburner\Documents\Models\Folder;
+use Afterburner\Documents\Models\RetentionTag;
 use Afterburner\Documents\Notifications\DocumentUploadComplete;
 use Afterburner\Documents\Services\StorageService;
 use App\Traits\InteractsWithBanner;
@@ -42,6 +46,7 @@ class Index extends Component
     // Upload Modal
     public bool $showingUploadModal = false;
     public $uploadFiles = [];
+    public $uploadNotes = '';
 
     // Folder Modal
     public bool $showingFolderModal = false;
@@ -60,7 +65,9 @@ class Index extends Component
     public ?Document $documentToEdit = null;
     public ?Document $documentToDelete = null;
     public $documentName = '';
+    public $documentNotes = '';
     public $newDocumentFile = null;
+    public ?int $selectedRetentionTagId = null;
 
     // Move Modals
     public bool $showingMoveDocumentModal = false;
@@ -72,6 +79,18 @@ class Index extends Component
     // Filters Panel
     public bool $showFilters = false;
 
+    // Retention Tag Management
+    public bool $showingRetentionTagsModal = false;
+    public bool $showingCreateRetentionTagModal = false;
+    public bool $showingEditRetentionTagModal = false;
+    public bool $showingDeleteRetentionTagModal = false;
+    public ?RetentionTag $retentionTagToEdit = null;
+    public ?RetentionTag $retentionTagToDelete = null;
+    public $retentionTagName = '';
+    public $retentionTagDescription = '';
+    public $retentionTagPeriodDays = '';
+    public $retentionTagColor = '#6B7280';
+
     protected function rules(): array
     {
         $maxFileSize = config('afterburner-documents.upload.max_file_size', 2147483648);
@@ -80,6 +99,8 @@ class Index extends Component
         $rules = [
             'folderName' => 'required|string|max:255',
             'documentName' => 'required|string|max:255',
+            'documentNotes' => 'nullable|string|max:5000',
+            'uploadNotes' => 'nullable|string|max:5000',
             'uploadFiles.*' => [
                 'required',
                 'file',
@@ -90,6 +111,10 @@ class Index extends Component
                 'file',
                 'max:'.$maxFileSize,
             ],
+            'retentionTagName' => 'required|string|max:255',
+            'retentionTagDescription' => 'nullable|string|max:1000',
+            'retentionTagPeriodDays' => 'required|integer|min:1|max:36500',
+            'retentionTagColor' => 'required|string|regex:/^#[0-9A-Fa-f]{6}$/',
         ];
 
         if (!empty($allowedMimeTypes)) {
@@ -304,11 +329,13 @@ class Index extends Component
     public function openUploadModal()
     {
         $this->showingUploadModal = true;
+        $this->uploadNotes = '';
     }
 
     public function closeUploadModal()
     {
         $this->showingUploadModal = false;
+        $this->uploadNotes = '';
         // Don't reset files here - let updatedUploadFiles handle it after processing
     }
 
@@ -346,6 +373,9 @@ class Index extends Component
 
             try {
                 DB::transaction(function () use ($file, &$uploadedCount) {
+                    // Ensure uploadNotes is a string, not an array
+                    $notes = is_array($this->uploadNotes) ? '' : ($this->uploadNotes ? (string) $this->uploadNotes : '');
+                    
                     // Create document record
                     $document = app(UploadDocument::class)->execute(
                         $this->teamId,
@@ -353,7 +383,9 @@ class Index extends Component
                         $file->getClientOriginalName(),
                         $file->getMimeType(),
                         $file->getSize(),
-                        Auth::user()
+                        Auth::user(),
+                        false,
+                        !empty($notes) ? $notes : null
                     );
 
                     // Generate storage path
@@ -388,11 +420,11 @@ class Index extends Component
             }
         }
 
-        // Reset files after processing
-        $this->reset(['uploadFiles']);
+        // Reset files and notes after processing
+        $this->reset(['uploadFiles', 'uploadNotes']);
 
         // Close modal after processing
-        $this->closeUploadModal();
+        $this->showingUploadModal = false;
 
         // Show success/error messages
         if ($uploadedCount > 0) {
@@ -420,6 +452,9 @@ class Index extends Component
 
     public function createFolder()
     {
+        // Ensure folderName is a string, not an array
+        $this->folderName = is_array($this->folderName) ? '' : (string) $this->folderName;
+
         $this->validateOnly('folderName');
 
         try {
@@ -465,6 +500,9 @@ class Index extends Component
         if (!Auth::user()->can('update', $this->folderToEdit)) {
             abort(403, 'Access denied.');
         }
+
+        // Ensure folderName is a string, not an array
+        $this->folderName = is_array($this->folderName) ? '' : (string) $this->folderName;
 
         $this->validateOnly('folderName');
 
@@ -576,7 +614,9 @@ class Index extends Component
 
         $this->documentToEdit = $document;
         $this->documentName = $document->name;
+        $this->documentNotes = $document->notes ?? '';
         $this->newDocumentFile = null;
+        $this->selectedRetentionTagId = $document->retention_tag_id;
         $this->showingEditDocumentModal = true;
     }
 
@@ -584,7 +624,7 @@ class Index extends Component
     {
         $this->showingEditDocumentModal = false;
         $this->documentToEdit = null;
-        $this->reset(['documentName', 'newDocumentFile']);
+        $this->reset(['documentName', 'documentNotes', 'newDocumentFile', 'selectedRetentionTagId']);
     }
 
     public function updateDocument()
@@ -597,10 +637,34 @@ class Index extends Component
             abort(403, 'Access denied.');
         }
 
-        $this->validateOnly(['documentName', 'newDocumentFile']);
+        // Ensure values are strings, not arrays
+        $this->documentName = is_array($this->documentName) ? '' : (string) $this->documentName;
+        $this->documentNotes = is_array($this->documentNotes) ? '' : ($this->documentNotes ? (string) $this->documentNotes : '');
+
+        $maxFileSize = config('afterburner-documents.upload.max_file_size', 2147483648);
+        $allowedMimeTypes = config('afterburner-documents.upload.allowed_mime_types', []);
+        
+        $rules = [
+            'documentName' => 'required|string|max:255',
+            'documentNotes' => 'nullable|string|max:5000',
+            'newDocumentFile' => [
+                'nullable',
+                'file',
+                'max:'.$maxFileSize,
+            ],
+        ];
+
+        if (!empty($allowedMimeTypes)) {
+            $rules['newDocumentFile'][] = 'mimetypes:'.implode(',', $allowedMimeTypes);
+        }
+
+        $this->validate($rules);
 
         try {
-            $attributes = ['name' => $this->documentName];
+            $attributes = [
+                'name' => $this->documentName,
+                'notes' => !empty($this->documentNotes) ? $this->documentNotes : null,
+            ];
             $fileContent = null;
 
             // If new file uploaded, get its content
@@ -615,6 +679,22 @@ class Index extends Component
                 $this->documentToEdit,
                 $attributes,
                 $fileContent,
+                Auth::user()
+            );
+
+            // Update retention tag if changed
+            $retentionTag = $this->selectedRetentionTagId 
+                ? RetentionTag::find($this->selectedRetentionTagId)
+                : null;
+            
+            if ($retentionTag && $retentionTag->team_id !== $this->documentToEdit->team_id) {
+                $this->dangerBanner('Retention tag does not belong to this team.');
+                return;
+            }
+
+            app(AssignRetentionTag::class)->execute(
+                $this->documentToEdit,
+                $retentionTag,
                 Auth::user()
             );
 
@@ -820,6 +900,186 @@ class Index extends Component
         return $descendants;
     }
 
+    // Retention Tag Management Methods
+    public function openRetentionTagsModal()
+    {
+        if (!Auth::user()->can('viewAny', RetentionTag::class)) {
+            abort(403, 'Access denied.');
+        }
+        $this->showingRetentionTagsModal = true;
+    }
+
+    public function closeRetentionTagsModal()
+    {
+        $this->showingRetentionTagsModal = false;
+    }
+
+    public function openCreateRetentionTagModal()
+    {
+        $team = \App\Models\Team::findOrFail($this->teamId);
+        
+        if (!Auth::user()->hasPermission('manage_retention_tags', $team->id)) {
+            abort(403, 'Access denied.');
+        }
+        
+        $this->reset(['retentionTagName', 'retentionTagDescription', 'retentionTagPeriodDays', 'retentionTagColor']);
+        $this->retentionTagPeriodDays = '';
+        $this->retentionTagColor = '#6B7280';
+        $this->showingCreateRetentionTagModal = true;
+    }
+
+    public function closeCreateRetentionTagModal()
+    {
+        $this->showingCreateRetentionTagModal = false;
+        $this->reset(['retentionTagName', 'retentionTagDescription', 'retentionTagPeriodDays', 'retentionTagColor']);
+    }
+
+    public function createRetentionTag()
+    {
+        $team = \App\Models\Team::findOrFail($this->teamId);
+        
+        if (!Auth::user()->hasPermission('manage_retention_tags', $team->id)) {
+            abort(403, 'Access denied.');
+        }
+
+        // Ensure values are strings/integers, not arrays
+        $this->retentionTagName = is_array($this->retentionTagName) ? '' : (string) $this->retentionTagName;
+        $this->retentionTagDescription = is_array($this->retentionTagDescription) ? '' : ($this->retentionTagDescription ? (string) $this->retentionTagDescription : '');
+        $this->retentionTagPeriodDays = is_array($this->retentionTagPeriodDays) ? '' : (string) $this->retentionTagPeriodDays;
+        $this->retentionTagColor = is_array($this->retentionTagColor) ? '#6B7280' : (string) $this->retentionTagColor;
+
+        $this->validate([
+            'retentionTagName' => 'required|string|max:255',
+            'retentionTagDescription' => 'nullable|string|max:1000',
+            'retentionTagPeriodDays' => 'required|integer|min:1|max:36500',
+            'retentionTagColor' => 'required|string|regex:/^#[0-9A-Fa-f]{6}$/',
+        ]);
+
+        try {
+            app(CreateRetentionTag::class)->execute(
+                $this->teamId,
+                $this->retentionTagName,
+                (int) $this->retentionTagPeriodDays,
+                $this->retentionTagColor,
+                !empty($this->retentionTagDescription) ? $this->retentionTagDescription : null,
+                Auth::user()
+            );
+
+            $this->banner(__('Retention tag created successfully.'));
+            $this->closeCreateRetentionTagModal();
+        } catch (\Exception $e) {
+            $this->dangerBanner($e->getMessage());
+        }
+    }
+
+    public function openEditRetentionTagModal(RetentionTag $tag)
+    {
+        if (!Auth::user()->can('update', $tag)) {
+            abort(403, 'Access denied.');
+        }
+
+        $this->retentionTagToEdit = $tag;
+        $this->retentionTagName = $tag->name;
+        $this->retentionTagDescription = $tag->description ?? '';
+        $this->retentionTagPeriodDays = $tag->retention_period_days;
+        $this->retentionTagColor = $tag->color;
+        $this->showingEditRetentionTagModal = true;
+    }
+
+    public function closeEditRetentionTagModal()
+    {
+        $this->showingEditRetentionTagModal = false;
+        $this->retentionTagToEdit = null;
+        $this->reset(['retentionTagName', 'retentionTagDescription', 'retentionTagPeriodDays', 'retentionTagColor']);
+    }
+
+    public function updateRetentionTag()
+    {
+        if (!$this->retentionTagToEdit) {
+            return;
+        }
+
+        if (!Auth::user()->can('update', $this->retentionTagToEdit)) {
+            abort(403, 'Access denied.');
+        }
+
+        // Ensure values are strings/integers, not arrays
+        $this->retentionTagName = is_array($this->retentionTagName) ? '' : (string) $this->retentionTagName;
+        $this->retentionTagDescription = is_array($this->retentionTagDescription) ? '' : ($this->retentionTagDescription ? (string) $this->retentionTagDescription : '');
+        $this->retentionTagPeriodDays = is_array($this->retentionTagPeriodDays) ? '' : (string) $this->retentionTagPeriodDays;
+        $this->retentionTagColor = is_array($this->retentionTagColor) ? '#6B7280' : (string) $this->retentionTagColor;
+
+        $this->validate([
+            'retentionTagName' => 'required|string|max:255',
+            'retentionTagDescription' => 'nullable|string|max:1000',
+            'retentionTagPeriodDays' => 'required|integer|min:1|max:36500',
+            'retentionTagColor' => 'required|string|regex:/^#[0-9A-Fa-f]{6}$/',
+        ]);
+
+        try {
+            app(UpdateRetentionTag::class)->execute(
+                $this->retentionTagToEdit,
+                [
+                    'name' => $this->retentionTagName,
+                    'description' => !empty($this->retentionTagDescription) ? $this->retentionTagDescription : null,
+                    'retention_period_days' => (int) $this->retentionTagPeriodDays,
+                    'color' => $this->retentionTagColor,
+                ],
+                Auth::user()
+            );
+
+            $this->banner(__('Retention tag updated successfully.'));
+            $this->closeEditRetentionTagModal();
+        } catch (\Exception $e) {
+            $this->dangerBanner($e->getMessage());
+        }
+    }
+
+    public function confirmDeleteRetentionTag(RetentionTag $tag)
+    {
+        if (!Auth::user()->can('delete', $tag)) {
+            abort(403, 'Access denied.');
+        }
+
+        $this->retentionTagToDelete = $tag;
+        $this->showingDeleteRetentionTagModal = true;
+    }
+
+    public function cancelDeleteRetentionTag()
+    {
+        $this->showingDeleteRetentionTagModal = false;
+        $this->retentionTagToDelete = null;
+    }
+
+    public function deleteRetentionTag()
+    {
+        if (!$this->retentionTagToDelete) {
+            return;
+        }
+
+        if (!Auth::user()->can('delete', $this->retentionTagToDelete)) {
+            abort(403, 'Access denied.');
+        }
+
+        try {
+            // Check if tag is in use
+            $documentsCount = $this->retentionTagToDelete->documents()->count();
+            if ($documentsCount > 0) {
+                $this->dangerBanner(__('Cannot delete retention tag. It is currently assigned to :count document(s).', ['count' => $documentsCount]));
+                $this->showingDeleteRetentionTagModal = false;
+                $this->retentionTagToDelete = null;
+                return;
+            }
+
+            $this->retentionTagToDelete->delete();
+            $this->banner(__('Retention tag deleted successfully.'));
+            $this->showingDeleteRetentionTagModal = false;
+            $this->retentionTagToDelete = null;
+        } catch (\Exception $e) {
+            $this->dangerBanner($e->getMessage());
+        }
+    }
+
     /**
      * Get folder tree for move modal, excluding current folder and its descendants.
      */
@@ -950,7 +1210,7 @@ class Index extends Component
             $documentsQuery->orderBy($documentSortColumn, $documentSortDirection);
         }
         
-        $documents = $documentsQuery->with(['team', 'uploader'])->paginate(25);
+        $documents = $documentsQuery->with(['team', 'uploader', 'retentionTag'])->paginate(25);
 
         // Get current folder for breadcrumbs
         $currentFolder = $this->currentFolderId
@@ -972,6 +1232,12 @@ class Index extends Component
 
         $allFolders = Folder::forTeam($this->teamId)->orderBy('name')->get();
 
+        // Get retention tags for the team with document counts
+        $retentionTags = RetentionTag::forTeam($this->teamId)
+            ->withCount('documents')
+            ->orderBy('name')
+            ->get();
+
         return view('afterburner-documents::documents.index', [
             'team' => $team,
             'folders' => $folders,
@@ -981,6 +1247,7 @@ class Index extends Component
             'mimeTypes' => $mimeTypes,
             'allFolders' => $allFolders,
             'folderTree' => $this->folderTree,
+            'retentionTags' => $retentionTags,
         ]);
     }
 }

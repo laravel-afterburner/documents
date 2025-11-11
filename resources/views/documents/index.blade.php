@@ -143,6 +143,14 @@
 
             <!-- Action Buttons -->
             <div class="mb-6 flex gap-2 justify-end">
+                @can('viewAny', \Afterburner\Documents\Models\RetentionTag::class)
+                    <x-secondary-button
+                        wire:click="openRetentionTagsModal"
+                        no-spinner
+                    >
+                        Manage Retention Tags
+                    </x-secondary-button>
+                @endcan
                 @can('create', [\Afterburner\Documents\Models\Document::class, $team])
                     <x-button
                         wire:click="openUploadModal"
@@ -307,7 +315,7 @@
                                                         class="p-1 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded"
                                                         title="Move folder"
                                                     >
-                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
                                                         </svg>
                                                     </button>
@@ -317,7 +325,7 @@
                                                         class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded"
                                                         title="Edit folder"
                                                     >
-                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
                                                         </svg>
                                                     </button>
@@ -329,7 +337,7 @@
                                                         class="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 rounded"
                                                         title="Delete folder"
                                                     >
-                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
                                                         </svg>
                                                     </button>
@@ -363,6 +371,11 @@
                                                     <p class="text-xs text-gray-500 dark:text-gray-400 truncate">
                                                         {{ $document->filename }}
                                                     </p>
+                                                    @if($document->notes)
+                                                        <p class="text-xs text-gray-400 dark:text-gray-500 mt-1 truncate" title="{{ $document->notes }}">
+                                                            {{ Str::limit($document->notes, 50) }}
+                                                        </p>
+                                                    @endif
                                                 </div>
                                             </button>
                                         </td>
@@ -394,7 +407,7 @@
                                                         class="p-1 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded"
                                                         title="Move document"
                                                     >
-                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
                                                         </svg>
                                                     </button>
@@ -404,7 +417,7 @@
                                                         class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded"
                                                         title="Edit document"
                                                     >
-                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
                                                         </svg>
                                                     </button>
@@ -415,7 +428,7 @@
                                                         class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded"
                                                         title="Download document"
                                                     >
-                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
                                                         </svg>
                                                     </a>
@@ -427,7 +440,7 @@
                                                         class="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 rounded"
                                                         title="Delete document"
                                                     >
-                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
                                                         </svg>
                                                     </button>
@@ -454,6 +467,17 @@
         </div>
     </div>
 
+    <!-- Document Viewer -->
+    @if($viewingDocumentId)
+        @php
+            $viewingDocument = \Afterburner\Documents\Models\Document::find($viewingDocumentId);
+        @endphp
+        @if($viewingDocument)
+            @livewire('documents.document-viewer', ['document' => $viewingDocument, 'autoOpen' => true], key('document-viewer-'.$viewingDocumentId))
+        @endif
+    @endif
+
+
     <!-- Upload Modal -->
     <x-dialog-modal wire:model.live="showingUploadModal" maxWidth="2xl">
         <x-slot name="title">
@@ -461,13 +485,30 @@
         </x-slot>
 
         <x-slot name="content">
-            <div>
-                <x-filepond::upload 
-                    wire:model="uploadFiles"
-                    multiple
-                    :max-file-size="config('afterburner-documents.upload.max_file_size', 2147483648)"
-                    :accepted-file-types="config('afterburner-documents.upload.allowed_mime_types', [])"
-                />
+            <div class="space-y-4">
+                <div>
+                    <x-label for="uploadNotes" value="Notes (Optional)" />
+                    <textarea
+                        id="uploadNotes"
+                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm"
+                        wire:model="uploadNotes"
+                        rows="3"
+                        placeholder="Add notes about this document..."
+                    ></textarea>
+                    <x-input-error for="uploadNotes" class="mt-2" />
+                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                        Optional notes that will be associated with all uploaded documents.
+                    </p>
+                </div>
+                <div>
+                    <x-label for="uploadFiles" value="Files" />
+                    <x-filepond::upload 
+                        wire:model="uploadFiles"
+                        multiple
+                        :max-file-size="config('afterburner-documents.upload.max_file_size', 2147483648)"
+                        :accepted-file-types="config('afterburner-documents.upload.allowed_mime_types', [])"
+                    />
+                </div>
             </div>
         </x-slot>
 
@@ -581,6 +622,17 @@
                 <x-input-error for="documentName" class="mt-2" />
             </div>
             <div class="mt-4">
+                <x-label for="documentNotes" value="Notes (Optional)" />
+                <textarea
+                    id="documentNotes"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm"
+                    wire:model="documentNotes"
+                    rows="3"
+                    placeholder="Add notes about this document..."
+                ></textarea>
+                <x-input-error for="documentNotes" class="mt-2" />
+            </div>
+            <div class="mt-4">
                 <x-label for="newDocumentFile" value="Replace File (Optional)" />
                 <x-input
                     id="newDocumentFile"
@@ -593,6 +645,24 @@
                     Leave empty to keep the current file.
                 </p>
             </div>
+            @if($retentionTags->count() > 0)
+                <div class="mt-4">
+                    <x-label for="selectedRetentionTagId" value="Retention Tag (Optional)" />
+                    <select
+                        id="selectedRetentionTagId"
+                        wire:model="selectedRetentionTagId"
+                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm"
+                    >
+                        <option value="">None</option>
+                        @foreach($retentionTags as $tag)
+                            <option value="{{ $tag->id }}">{{ $tag->name }} ({{ $tag->retention_period_days }} days)</option>
+                        @endforeach
+                    </select>
+                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                        Documents with retention tags cannot be deleted until the retention period expires.
+                    </p>
+                </div>
+            @endif
         </x-slot>
 
         <x-slot name="footer">
@@ -794,14 +864,331 @@
         </x-slot>
     </x-dialog-modal>
 
-    <!-- Document Viewer -->
-    @if($viewingDocumentId)
-        @php
-            $viewingDocument = \Afterburner\Documents\Models\Document::find($viewingDocumentId);
-        @endphp
-        @if($viewingDocument)
-            @livewire('documents.document-viewer', ['document' => $viewingDocument, 'autoOpen' => true], key('document-viewer-'.$viewingDocumentId))
-        @endif
-    @endif
+    <!-- Retention Tags Management Modal -->
+    <x-dialog-modal wire:model.live="showingRetentionTagsModal" maxWidth="4xl">
+        <x-slot name="title">
+            Manage Retention Tags
+        </x-slot>
+
+        <x-slot name="content">
+            <div class="space-y-6">
+                <!-- Header with Create Button -->
+                <div class="flex items-center justify-between">
+                    <h3 class="text-sm font-semibold text-gray-900 dark:text-gray-100">Retention Tags</h3>
+                    @if(auth()->user()->hasPermission('manage_retention_tags', $team->id))
+                        <x-button 
+                            wire:click="openCreateRetentionTagModal" 
+                            size="sm"
+                            no-spinner
+                        >
+                            Create Tag
+                        </x-button>
+                    @endif
+                </div>
+
+                <!-- Existing Retention Tags List -->
+                @if($retentionTags->count() > 0)
+                    <div>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                                <thead class="bg-gray-50 dark:bg-gray-900">
+                                    <tr>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                            Name
+                                        </th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                            Period
+                                        </th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-1/3">
+                                            Description
+                                        </th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                            Documents
+                                        </th>
+                                        <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                            Actions
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                                    @foreach($retentionTags as $tag)
+                                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors group">
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                <div class="flex items-center space-x-2">
+                                                    <span 
+                                                        class="px-2 py-1 text-xs font-medium rounded"
+                                                        style="background-color: {{ $tag->color }}20; color: {{ $tag->color }};"
+                                                    >
+                                                        {{ $tag->name }}
+                                                    </span>
+                                                </div>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                                                {{ $tag->retention_period_days }} days
+                                                <span class="text-xs text-gray-400 dark:text-gray-500">
+                                                    ({{ round($tag->retention_period_days / 365, 1) }} years)
+                                                </span>
+                                            </td>
+                                            <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+                                                {{ $tag->description ?? '—' }}
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                                                {{ $tag->documents_count }}
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                <div class="flex items-center justify-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    @can('update', $tag)
+                                                        <button
+                                                            type="button"
+                                                            wire:click="openEditRetentionTagModal({{ $tag->id }})"
+                                                            class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded"
+                                                            title="Edit retention tag"
+                                                        >
+                                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                                            </svg>
+                                                        </button>
+                                                    @endcan
+                                                    @can('delete', $tag)
+                                                        <button
+                                                            type="button"
+                                                            wire:click="confirmDeleteRetentionTag({{ $tag->id }})"
+                                                            class="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 rounded"
+                                                            title="Delete retention tag"
+                                                        >
+                                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                                            </svg>
+                                                        </button>
+                                                    @endcan
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                @else
+                    <div class="text-center py-12">
+                        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
+                        </svg>
+                        <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">No retention tags</h3>
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Get started by creating a new retention tag.</p>
+                    </div>
+                @endif
+            </div>
+        </x-slot>
+
+        <x-slot name="footer">
+            <x-secondary-button wire:click="closeRetentionTagsModal">
+                Close
+            </x-secondary-button>
+        </x-slot>
+    </x-dialog-modal>
+
+    <!-- Create Retention Tag Modal -->
+    <x-dialog-modal wire:model.live="showingCreateRetentionTagModal" maxWidth="md">
+        <x-slot name="title">
+            Create Retention Tag
+        </x-slot>
+
+        <x-slot name="content">
+            <div class="space-y-4">
+                <div>
+                    <x-label for="createRetentionTagName" value="Name" />
+                    <x-input
+                        id="createRetentionTagName"
+                        type="text"
+                        class="mt-1 block w-full"
+                        wire:model="retentionTagName"
+                        autofocus
+                        placeholder="e.g., 7 Year Retention"
+                    />
+                    <x-input-error for="retentionTagName" class="mt-2" />
+                </div>
+
+                <div>
+                    <x-label for="createRetentionTagDescription" value="Description (Optional)" />
+                    <textarea
+                        id="createRetentionTagDescription"
+                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm"
+                        wire:model="retentionTagDescription"
+                        rows="3"
+                        placeholder="BC record-keeping compliance..."
+                    ></textarea>
+                    <x-input-error for="retentionTagDescription" class="mt-2" />
+                </div>
+
+                <div>
+                    <x-label for="createRetentionTagPeriodDays" value="Retention Period (Days)" />
+                    <x-input
+                        id="createRetentionTagPeriodDays"
+                        type="number"
+                        class="mt-1 block w-full"
+                        wire:model="retentionTagPeriodDays"
+                        min="1"
+                        max="36500"
+                    />
+                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                        @if($retentionTagPeriodDays)
+                            {{ round((int)$retentionTagPeriodDays / 365, 1) }} years
+                        @else
+                            0 years
+                        @endif
+                    </p>
+                    <x-input-error for="retentionTagPeriodDays" class="mt-2" />
+                </div>
+
+                <div>
+                    <x-label for="createRetentionTagColor" value="Color" />
+                    <div class="mt-1 flex items-center space-x-3">
+                        <input
+                            id="createRetentionTagColor"
+                            type="color"
+                            class="h-10 w-20 rounded border-gray-300 cursor-pointer"
+                            wire:model="retentionTagColor"
+                        />
+                        <x-input
+                            type="text"
+                            class="block w-full"
+                            wire:model="retentionTagColor"
+                            placeholder="#6B7280"
+                        />
+                        <span 
+                            class="px-3 py-2 rounded text-sm font-medium"
+                            style="background-color: {{ $retentionTagColor }}20; color: {{ $retentionTagColor }};"
+                        >
+                            Preview
+                        </span>
+                    </div>
+                    <x-input-error for="retentionTagColor" class="mt-2" />
+                </div>
+            </div>
+        </x-slot>
+
+        <x-slot name="footer">
+            <div class="flex flex-row justify-end gap-3 w-full">
+                <x-secondary-button wire:click="closeCreateRetentionTagModal">
+                    Cancel
+                </x-secondary-button>
+                <x-button wire:click="createRetentionTag" no-spinner>
+                    Create
+                </x-button>
+            </div>
+        </x-slot>
+    </x-dialog-modal>
+
+    <!-- Edit Retention Tag Modal -->
+    <x-dialog-modal wire:model.live="showingEditRetentionTagModal" maxWidth="md">
+        <x-slot name="title">
+            Edit Retention Tag
+        </x-slot>
+
+        <x-slot name="content">
+            <div class="space-y-4">
+                <div>
+                    <x-label for="editRetentionTagName" value="Name" />
+                    <x-input
+                        id="editRetentionTagName"
+                        type="text"
+                        class="mt-1 block w-full"
+                        wire:model="retentionTagName"
+                        autofocus
+                    />
+                    <x-input-error for="retentionTagName" class="mt-2" />
+                </div>
+
+                <div>
+                    <x-label for="editRetentionTagDescription" value="Description (Optional)" />
+                    <textarea
+                        id="editRetentionTagDescription"
+                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm"
+                        wire:model="retentionTagDescription"
+                        rows="3"
+                    ></textarea>
+                    <x-input-error for="retentionTagDescription" class="mt-2" />
+                </div>
+
+                <div>
+                    <x-label for="editRetentionTagPeriodDays" value="Retention Period (Days)" />
+                    <x-input
+                        id="editRetentionTagPeriodDays"
+                        type="number"
+                        class="mt-1 block w-full"
+                        wire:model="retentionTagPeriodDays"
+                        min="1"
+                        max="36500"
+                    />
+                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                        {{ $retentionTagPeriodDays ? round($retentionTagPeriodDays / 365, 1) : 0 }} years
+                    </p>
+                    <x-input-error for="retentionTagPeriodDays" class="mt-2" />
+                </div>
+
+                <div>
+                    <x-label for="editRetentionTagColor" value="Color" />
+                    <div class="mt-1 flex items-center space-x-3">
+                        <input
+                            id="editRetentionTagColor"
+                            type="color"
+                            class="h-10 w-20 rounded border-gray-300 cursor-pointer"
+                            wire:model="retentionTagColor"
+                        />
+                        <x-input
+                            type="text"
+                            class="block w-full"
+                            wire:model="retentionTagColor"
+                            placeholder="#6B7280"
+                        />
+                        <span 
+                            class="px-3 py-2 rounded text-sm font-medium"
+                            style="background-color: {{ $retentionTagColor }}20; color: {{ $retentionTagColor }};"
+                        >
+                            Preview
+                        </span>
+                    </div>
+                    <x-input-error for="retentionTagColor" class="mt-2" />
+                </div>
+            </div>
+        </x-slot>
+
+        <x-slot name="footer">
+            <div class="flex flex-row justify-end gap-3 w-full">
+                <x-secondary-button wire:click="closeEditRetentionTagModal">
+                    Cancel
+                </x-secondary-button>
+                <x-button wire:click="updateRetentionTag" no-spinner>
+                    Update
+                </x-button>
+            </div>
+        </x-slot>
+    </x-dialog-modal>
+
+    <!-- Delete Retention Tag Confirmation Modal -->
+    <x-confirmation-modal wire:model.live="showingDeleteRetentionTagModal">
+        <x-slot name="title">
+            Delete Retention Tag
+        </x-slot>
+
+        <x-slot name="content">
+            @if($retentionTagToDelete)
+                Are you sure you want to delete the retention tag "{{ $retentionTagToDelete->name }}"?
+                <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                    This action cannot be undone. The tag cannot be deleted if it is currently assigned to any documents.
+                </p>
+            @endif
+        </x-slot>
+
+        <x-slot name="footer">
+            <x-secondary-button wire:click="cancelDeleteRetentionTag">
+                Cancel
+            </x-secondary-button>
+            <x-danger-button wire:click="deleteRetentionTag" class="ml-3">
+                Delete
+            </x-danger-button>
+        </x-slot>
+    </x-confirmation-modal>
 </div>
 

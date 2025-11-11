@@ -1,5 +1,6 @@
 <?php
 
+use Afterburner\Documents\Http\Controllers\ChunkedUploadController;
 use Afterburner\Documents\Http\Controllers\DocumentsController;
 use Afterburner\Documents\Models\Document;
 use Illuminate\Support\Facades\Route;
@@ -33,5 +34,15 @@ Route::middleware(['web', 'auth', 'verified'])->group(function () {
     })
         ->name('teams.documents.download')
         ->middleware('can:download,document');
+
+    // Chunked upload routes
+    Route::post('/teams/{team}/documents/chunks', [ChunkedUploadController::class, 'uploadChunk'])
+        ->name('teams.documents.chunks.upload');
+    
+    Route::post('/teams/{team}/documents/chunks/assemble', [ChunkedUploadController::class, 'assembleChunks'])
+        ->name('teams.documents.chunks.assemble');
+    
+    Route::delete('/teams/{team}/documents/chunks/{chunkId}', [ChunkedUploadController::class, 'deleteChunk'])
+        ->name('teams.documents.chunks.delete');
 });
 

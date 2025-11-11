@@ -71,7 +71,16 @@ class DocumentPolicy
         }
 
         // Check for delete_documents permission
-        return $user->hasPermission('delete_documents', $document->team->id);
+        if (!$user->hasPermission('delete_documents', $document->team->id)) {
+            return false;
+        }
+
+        // Check if document is protected by retention
+        if ($document->isRetentionProtected()) {
+            return false;
+        }
+
+        return true;
     }
 
     /**
@@ -86,6 +95,20 @@ class DocumentPolicy
 
         // Check for download_documents permission
         return $user->hasPermission('download_documents', $document->team->id);
+    }
+
+    /**
+     * Determine whether the user can restore a document version.
+     */
+    public function restoreVersion(User $user, Document $document): bool
+    {
+        // User must belong to the team
+        if (!$user->belongsToTeam($document->team)) {
+            return false;
+        }
+
+        // Check for restore_document_versions permission
+        return $user->hasPermission('restore_document_versions', $document->team->id);
     }
 }
 

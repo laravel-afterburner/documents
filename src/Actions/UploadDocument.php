@@ -17,6 +17,7 @@ class UploadDocument
      * @param  int  $size
      * @param  User  $user
      * @param  bool  $overwrite  Whether to overwrite existing document
+     * @param  string|null  $notes  Optional notes for the document
      * @return Document
      */
     public function execute(
@@ -26,7 +27,8 @@ class UploadDocument
         string $mimeType,
         int $size,
         User $user,
-        bool $overwrite = false
+        bool $overwrite = false,
+        ?string $notes = null
     ): Document {
         $name = pathinfo($filename, PATHINFO_FILENAME);
 
@@ -49,6 +51,7 @@ class UploadDocument
                 'upload_status' => 'pending',
                 'upload_progress' => 0,
                 'uploaded_by' => $user->id,
+                'notes' => $notes,
             ]);
 
             return $existing;
@@ -59,6 +62,7 @@ class UploadDocument
             'team_id' => $teamId,
             'folder_id' => $folderId,
             'name' => $name,
+            'notes' => $notes,
             'filename' => $filename,
             'mime_type' => $mimeType,
             'size' => $size,

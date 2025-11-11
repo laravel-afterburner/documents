@@ -114,6 +114,11 @@ class DocumentsServiceProvider extends ServiceProvider
             \Afterburner\Documents\Models\Folder::class,
             \Afterburner\Documents\Policies\FolderPolicy::class
         );
+
+        \Illuminate\Support\Facades\Gate::policy(
+            \Afterburner\Documents\Models\RetentionTag::class,
+            \Afterburner\Documents\Policies\RetentionTagPolicy::class
+        );
     }
 
     /**

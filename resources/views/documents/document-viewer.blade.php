@@ -47,6 +47,15 @@
                     </dl>
                 </div>
 
+                @if($document->notes)
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Notes</dt>
+                        <dd class="text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap bg-gray-50 dark:bg-gray-700 rounded-md p-3">
+                            {{ $document->notes }}
+                        </dd>
+                    </div>
+                @endif
+
                 @if($document->upload_status === 'uploading' || $document->upload_status === 'processing')
                     <div>
                         @include('afterburner-documents::components.progress-bar', ['progress' => $document->upload_progress])
@@ -64,7 +73,23 @@
                                         <span class="text-xs text-gray-500 dark:text-gray-400 ml-2">
                                             {{ $version->getFormattedCreatedAt('Y-m-d H:i') }} by {{ $version->creator->name }}
                                         </span>
+                                        @if($version->version_number === $document->getCurrentVersionNumber())
+                                            <span class="ml-2 px-1.5 py-0.5 text-xs font-medium rounded bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                                                Current
+                                            </span>
+                                        @endif
                                     </div>
+                                    @if($version->version_number !== $document->getCurrentVersionNumber())
+                                        @can('restoreVersion', $document)
+                                            <x-button 
+                                                wire:click="confirmRestoreVersion({{ $version->id }})" 
+                                                size="sm"
+                                                class="ml-2"
+                                            >
+                                                Restore
+                                            </x-button>
+                                        @endcan
+                                    @endif
                                 </div>
                             @endforeach
                         </div>
@@ -116,6 +141,18 @@
                 </div>
 
                 <div>
+                    <x-label for="documentNotes" value="Notes (Optional)" />
+                    <textarea
+                        id="documentNotes"
+                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm"
+                        wire:model="documentNotes"
+                        rows="3"
+                        placeholder="Add notes about this document..."
+                    ></textarea>
+                    <x-input-error for="documentNotes" class="mt-2" />
+                </div>
+
+                <div>
                     <x-label for="newFile" value="Upload New Version (Optional)" />
                     <x-filepond::upload 
                         wire:model="newFile"
@@ -157,6 +194,31 @@
             <x-danger-button wire:click="deleteDocument" class="ml-3">
                 Delete
             </x-danger-button>
+        </x-slot>
+    </x-confirmation-modal>
+
+    <!-- Restore Version Confirmation Modal -->
+    <x-confirmation-modal wire:model.live="showingRestoreVersionModal">
+        <x-slot name="title">
+            Restore Version
+        </x-slot>
+
+        <x-slot name="content">
+            @if($versionToRestore)
+                Are you sure you want to restore Version {{ $versionToRestore->version_number }} of "{{ $document->name }}"?
+                <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                    The current version will be saved as a new version before restoring. This action cannot be undone.
+                </p>
+            @endif
+        </x-slot>
+
+        <x-slot name="footer">
+            <x-secondary-button wire:click="cancelRestoreVersion">
+                Cancel
+            </x-secondary-button>
+            <x-button wire:click="restoreVersion" class="ml-3">
+                Restore
+            </x-button>
         </x-slot>
     </x-confirmation-modal>
 </div>

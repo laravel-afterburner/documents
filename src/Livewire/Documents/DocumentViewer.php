@@ -3,8 +3,10 @@
 namespace Afterburner\Documents\Livewire\Documents;
 
 use Afterburner\Documents\Actions\DeleteDocument;
+use Afterburner\Documents\Actions\RestoreDocumentVersion;
 use Afterburner\Documents\Actions\UpdateDocument;
 use Afterburner\Documents\Models\Document;
+use Afterburner\Documents\Models\DocumentVersion;
 use App\Traits\InteractsWithBanner;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
@@ -22,10 +24,15 @@ class DocumentViewer extends Component
     // Edit modal
     public bool $showingEditModal = false;
     public $documentName = '';
+    public $documentNotes = '';
     public $newFile = null;
 
     // Delete modal
     public bool $showingDeleteModal = false;
+
+    // Restore version modal
+    public bool $showingRestoreVersionModal = false;
+    public ?DocumentVersion $versionToRestore = null;
 
     public function mount(Document $document, bool $autoOpen = false)
     {
@@ -85,6 +92,7 @@ class DocumentViewer extends Component
         }
 
         $this->documentName = $this->document->name;
+        $this->documentNotes = $this->document->notes ?? '';
         $this->newFile = null;
         $this->showingEditModal = true;
     }
@@ -92,7 +100,7 @@ class DocumentViewer extends Component
     public function closeEditModal()
     {
         $this->showingEditModal = false;
-        $this->reset(['documentName', 'newFile']);
+        $this->reset(['documentName', 'documentNotes', 'newFile']);
     }
 
     /**
@@ -106,6 +114,7 @@ class DocumentViewer extends Component
 
         $rules = [
             'documentName' => 'required|string|max:255',
+            'documentNotes' => 'nullable|string|max:5000',
             'newFile' => [
                 'nullable',
                 'file',
@@ -137,8 +146,15 @@ class DocumentViewer extends Component
             abort(403, 'Access denied.');
         }
 
+        // Ensure values are strings, not arrays
+        $this->documentName = is_array($this->documentName) ? '' : (string) $this->documentName;
+        $this->documentNotes = is_array($this->documentNotes) ? '' : ($this->documentNotes ? (string) $this->documentNotes : '');
+
         try {
-            $attributes = ['name' => $this->documentName];
+            $attributes = [
+                'name' => $this->documentName,
+                'notes' => !empty($this->documentNotes) ? $this->documentNotes : null,
+            ];
             $fileContent = file_get_contents($this->newFile->getRealPath());
             $attributes['filename'] = $this->newFile->getClientOriginalName();
             $attributes['mime_type'] = $this->newFile->getMimeType();
@@ -174,8 +190,13 @@ class DocumentViewer extends Component
             abort(403, 'Access denied.');
         }
 
+        // Ensure values are strings, not arrays
+        $this->documentName = is_array($this->documentName) ? '' : (string) $this->documentName;
+        $this->documentNotes = is_array($this->documentNotes) ? '' : ($this->documentNotes ? (string) $this->documentNotes : '');
+
         $this->validate([
             'documentName' => 'required|string|max:255',
+            'documentNotes' => 'nullable|string|max:5000',
         ]);
 
         // Only update name if no file was uploaded (file upload is handled by updatedNewFile)
@@ -185,7 +206,10 @@ class DocumentViewer extends Component
         }
 
         try {
-            $attributes = ['name' => $this->documentName];
+            $attributes = [
+                'name' => $this->documentName,
+                'notes' => !empty($this->documentNotes) ? $this->documentNotes : null,
+            ];
 
             app(UpdateDocument::class)->execute(
                 $this->document,
@@ -236,6 +260,51 @@ class DocumentViewer extends Component
             $this->showingDeleteModal = false;
             $this->close();
             $this->dispatch('document-deleted');
+        } catch (\Exception $e) {
+            $this->dangerBanner($e->getMessage());
+        }
+    }
+
+    public function confirmRestoreVersion(DocumentVersion $version)
+    {
+        if (!Auth::user()->can('restoreVersion', $this->document)) {
+            abort(403, 'Access denied.');
+        }
+
+        $this->versionToRestore = $version;
+        $this->showingRestoreVersionModal = true;
+    }
+
+    public function cancelRestoreVersion()
+    {
+        $this->showingRestoreVersionModal = false;
+        $this->versionToRestore = null;
+    }
+
+    public function restoreVersion()
+    {
+        if (!$this->versionToRestore) {
+            return;
+        }
+
+        if (!Auth::user()->can('restoreVersion', $this->document)) {
+            abort(403, 'Access denied.');
+        }
+
+        try {
+            app(RestoreDocumentVersion::class)->execute(
+                $this->document,
+                $this->versionToRestore,
+                Auth::user()
+            );
+
+            // Refresh document to get updated data
+            $this->document->refresh();
+
+            $this->banner(__('Document version restored successfully.'));
+            $this->showingRestoreVersionModal = false;
+            $this->versionToRestore = null;
+            $this->dispatch('document-updated');
         } catch (\Exception $e) {
             $this->dangerBanner($e->getMessage());
         }

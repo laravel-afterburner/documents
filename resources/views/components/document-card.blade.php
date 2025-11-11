@@ -19,10 +19,24 @@
                                 v{{ $document->getCurrentVersionNumber() }}
                             </span>
                         @endif
+                        @if($document->retentionTag)
+                            <span 
+                                class="px-1.5 py-0.5 text-xs font-medium rounded"
+                                style="background-color: {{ $document->retentionTag->color }}20; color: {{ $document->retentionTag->color }};"
+                                title="Retention: {{ $document->retentionTag->name }} (expires {{ $document->retention_expires_at->format('Y-m-d') }})"
+                            >
+                                {{ $document->retentionTag->name }}
+                            </span>
+                        @endif
                     </div>
                     <p class="text-xs text-gray-500 dark:text-gray-400 truncate">
                         {{ $document->filename }}
                     </p>
+                    @if($document->notes)
+                        <p class="text-xs text-gray-400 dark:text-gray-500 mt-1 truncate" title="{{ $document->notes }}">
+                            {{ Str::limit($document->notes, 50) }}
+                        </p>
+                    @endif
                 </div>
             </div>
         </div>

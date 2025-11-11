@@ -16,6 +16,7 @@ class Document extends Model
         'team_id',
         'folder_id',
         'name',
+        'notes',
         'filename',
         'mime_type',
         'size',
@@ -23,12 +24,15 @@ class Document extends Model
         'upload_status',
         'upload_progress',
         'uploaded_by',
+        'retention_tag_id',
+        'retention_expires_at',
     ];
 
     protected $casts = [
         'upload_status' => 'string',
         'upload_progress' => 'integer',
         'size' => 'integer',
+        'retention_expires_at' => 'datetime',
     ];
 
     /**
@@ -61,6 +65,34 @@ class Document extends Model
     public function uploader(): BelongsTo
     {
         return $this->belongsTo(\App\Models\User::class, 'uploaded_by');
+    }
+
+    /**
+     * Get the retention tag for this document.
+     */
+    public function retentionTag(): BelongsTo
+    {
+        return $this->belongsTo(RetentionTag::class);
+    }
+
+    /**
+     * Check if the document is protected by retention.
+     */
+    public function isRetentionProtected(): bool
+    {
+        if (!$this->retention_tag_id || !$this->retention_expires_at) {
+            return false;
+        }
+
+        return now()->isBefore($this->retention_expires_at);
+    }
+
+    /**
+     * Check if the document can be deleted (not protected by retention).
+     */
+    public function canBeDeleted(): bool
+    {
+        return !$this->isRetentionProtected();
     }
 
     /**

@@ -19,7 +19,7 @@
                                 v{{ $document->getCurrentVersionNumber() }}
                             </span>
                         @endif
-                        @if($document->retentionTag)
+                        @if(($retentionEnabled ?? true) && $document->retentionTag)
                             <span 
                                 class="px-1.5 py-0.5 text-xs font-medium rounded"
                                 style="background-color: {{ $document->retentionTag->color }}20; color: {{ $document->retentionTag->color }};"

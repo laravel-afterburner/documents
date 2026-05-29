@@ -3,6 +3,9 @@
 namespace Afterburner\Documents\Policies;
 
 use Afterburner\Documents\Models\Folder;
+use Afterburner\Documents\Support\SubscriptionEntitlementGate;
+use Afterburner\Documents\Support\TeamPermissionGate;
+use App\Models\Team;
 use App\Models\User;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
@@ -24,12 +27,11 @@ class FolderPolicy
     public function view(User $user, Folder $folder): bool
     {
         // User must belong to the team
-        if (!$user->belongsToTeam($folder->team)) {
+        if (! $user->belongsToTeam($folder->team)) {
             return false;
         }
 
-        // Check for view_documents permission (folders are part of documents)
-        return $user->hasPermission('view_documents', $folder->team->id);
+        return $this->allowsFolderAction($user, $folder->team, 'view_documents');
     }
 
     /**
@@ -38,12 +40,11 @@ class FolderPolicy
     public function create(User $user, $team): bool
     {
         // User must belong to the team
-        if (!$user->belongsToTeam($team)) {
+        if (! $user->belongsToTeam($team)) {
             return false;
         }
 
-        // Check for manage_folders permission
-        return $user->hasPermission('manage_folders', $team->id);
+        return $this->allowsFolderAction($user, $team, 'manage_folders');
     }
 
     /**
@@ -52,12 +53,11 @@ class FolderPolicy
     public function update(User $user, Folder $folder): bool
     {
         // User must belong to the team
-        if (!$user->belongsToTeam($folder->team)) {
+        if (! $user->belongsToTeam($folder->team)) {
             return false;
         }
 
-        // Check for manage_folders permission
-        return $user->hasPermission('manage_folders', $folder->team->id);
+        return $this->allowsFolderAction($user, $folder->team, 'manage_folders');
     }
 
     /**
@@ -66,12 +66,19 @@ class FolderPolicy
     public function delete(User $user, Folder $folder): bool
     {
         // User must belong to the team
-        if (!$user->belongsToTeam($folder->team)) {
+        if (! $user->belongsToTeam($folder->team)) {
             return false;
         }
 
-        // Check for manage_folders permission
-        return $user->hasPermission('manage_folders', $folder->team->id);
+        return $this->allowsFolderAction($user, $folder->team, 'manage_folders');
+    }
+
+    protected function allowsFolderAction(User $user, Team $team, string $permission): bool
+    {
+        if (! SubscriptionEntitlementGate::allows($team)) {
+            return false;
+        }
+
+        return TeamPermissionGate::allows($user, $team->id, $permission);
     }
 }
-

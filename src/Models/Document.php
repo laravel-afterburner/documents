@@ -2,11 +2,15 @@
 
 namespace Afterburner\Documents\Models;
 
+use Afterburner\Documents\Support\TeamDocumentSettings;
+use App\Models\Team;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Storage;
 
 class Document extends Model
 {
@@ -40,7 +44,7 @@ class Document extends Model
      */
     public function team(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\Team::class);
+        return $this->belongsTo(Team::class);
     }
 
     /**
@@ -64,7 +68,7 @@ class Document extends Model
      */
     public function uploader(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\User::class, 'uploaded_by');
+        return $this->belongsTo(User::class, 'uploaded_by');
     }
 
     /**
@@ -80,7 +84,11 @@ class Document extends Model
      */
     public function isRetentionProtected(): bool
     {
-        if (!$this->retention_tag_id || !$this->retention_expires_at) {
+        if (! TeamDocumentSettings::retentionEnabledForTeam($this->team_id)) {
+            return false;
+        }
+
+        if (! $this->retention_tag_id || ! $this->retention_expires_at) {
             return false;
         }
 
@@ -92,7 +100,7 @@ class Document extends Model
      */
     public function canBeDeleted(): bool
     {
-        return !$this->isRetentionProtected();
+        return ! $this->isRetentionProtected();
     }
 
     /**
@@ -109,6 +117,7 @@ class Document extends Model
     public function getCurrentVersionNumber(): ?int
     {
         $currentVersion = $this->currentVersion();
+
         return $currentVersion ? $currentVersion->version_number : null;
     }
 
@@ -125,7 +134,7 @@ class Document extends Model
      */
     public function getUrl(): string
     {
-        $disk = \Illuminate\Support\Facades\Storage::disk('r2');
+        $disk = Storage::disk('r2');
         if ($disk->exists($this->storage_path)) {
             return $disk->url($this->storage_path);
         }
@@ -187,15 +196,15 @@ class Document extends Model
     public function getTimezone(): string
     {
         $team = $this->team;
-        
-        if ($team && isset($team->timezone) && !empty($team->timezone)) {
+
+        if ($team && isset($team->timezone) && ! empty($team->timezone)) {
             return $team->timezone;
         }
-        
-        if ($team && isset($team->time_zone) && !empty($team->time_zone)) {
+
+        if ($team && isset($team->time_zone) && ! empty($team->time_zone)) {
             return $team->time_zone;
         }
-        
+
         return config('app.timezone', 'UTC');
     }
 
@@ -210,7 +219,7 @@ class Document extends Model
     /**
      * Get the appropriate icon SVG for the document based on its MIME type.
      *
-     * @param string $size Tailwind size class (e.g., 'w-8 h-8', 'w-6 h-6')
+     * @param  string  $size  Tailwind size class (e.g., 'w-8 h-8', 'w-6 h-6')
      */
     public function getIconSvg(string $size = 'w-8 h-8'): string
     {
@@ -219,56 +228,93 @@ class Document extends Model
 
         // PDF
         if ($mimeType === 'application/pdf' || $extension === 'pdf') {
-            return '<svg class="' . $size . ' text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>';
+            return '<svg class="'.$size.' text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>';
         }
 
         // Images
         if (str_starts_with($mimeType, 'image/') || in_array($extension, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'ico'])) {
-            return '<svg class="' . $size . ' text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>';
+            return '<svg class="'.$size.' text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>';
         }
 
         // Word Documents
         if (str_contains($mimeType, 'wordprocessingml') || str_contains($mimeType, 'msword') || in_array($extension, ['doc', 'docx'])) {
-            return '<svg class="' . $size . ' text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>';
+            return '<svg class="'.$size.' text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>';
         }
 
         // Excel Spreadsheets
         if (str_contains($mimeType, 'spreadsheetml') || str_contains($mimeType, 'ms-excel') || in_array($extension, ['xls', 'xlsx', 'csv'])) {
-            return '<svg class="' . $size . ' text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>';
+            return '<svg class="'.$size.' text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>';
         }
 
         // PowerPoint Presentations
         if (str_contains($mimeType, 'presentationml') || str_contains($mimeType, 'ms-powerpoint') || in_array($extension, ['ppt', 'pptx'])) {
-            return '<svg class="' . $size . ' text-orange-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>';
+            return '<svg class="'.$size.' text-orange-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>';
         }
 
         // Text Files
         if (str_starts_with($mimeType, 'text/') || in_array($extension, ['txt', 'md', 'rtf'])) {
-            return '<svg class="' . $size . ' text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>';
+            return '<svg class="'.$size.' text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>';
         }
 
         // Code Files
         if (in_array($extension, ['js', 'jsx', 'ts', 'tsx', 'php', 'py', 'java', 'cpp', 'c', 'cs', 'rb', 'go', 'rs', 'swift', 'kt', 'html', 'css', 'scss', 'sass', 'less', 'xml', 'json', 'yaml', 'yml', 'sh', 'bash', 'zsh', 'sql'])) {
-            return '<svg class="' . $size . ' text-purple-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>';
+            return '<svg class="'.$size.' text-purple-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>';
         }
 
         // Archives
         if (str_starts_with($mimeType, 'application/zip') || str_starts_with($mimeType, 'application/x-') || in_array($extension, ['zip', 'rar', '7z', 'tar', 'gz', 'bz2'])) {
-            return '<svg class="' . $size . ' text-yellow-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path></svg>';
+            return '<svg class="'.$size.' text-yellow-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path></svg>';
         }
 
         // Video Files
         if (str_starts_with($mimeType, 'video/') || in_array($extension, ['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mkv', 'm4v'])) {
-            return '<svg class="' . $size . ' text-pink-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>';
+            return '<svg class="'.$size.' text-pink-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>';
         }
 
         // Audio Files
         if (str_starts_with($mimeType, 'audio/') || in_array($extension, ['mp3', 'wav', 'flac', 'aac', 'ogg', 'wma', 'm4a'])) {
-            return '<svg class="' . $size . ' text-indigo-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path></svg>';
+            return '<svg class="'.$size.' text-indigo-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path></svg>';
         }
 
         // Default document icon
-        return '<svg class="' . $size . ' text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>';
+        return '<svg class="'.$size.' text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>';
+    }
+
+    /**
+     * Whether this document can be displayed inline in the browser (PDF, images, plain text).
+     */
+    public function isPreviewableInBrowser(): bool
+    {
+        if ($this->isImagePreview()) {
+            return true;
+        }
+
+        $mimeType = strtolower($this->mime_type ?? '');
+        $extension = strtolower(pathinfo($this->filename ?? '', PATHINFO_EXTENSION));
+
+        if ($mimeType === 'application/pdf' || $extension === 'pdf') {
+            return true;
+        }
+
+        if (in_array($mimeType, ['text/plain', 'text/markdown'], true)) {
+            return true;
+        }
+
+        return in_array($extension, ['txt', 'md'], true);
+    }
+
+    /**
+     * Whether the preview should render as an image element (vs iframe).
+     */
+    public function isImagePreview(): bool
+    {
+        $mimeType = strtolower($this->mime_type ?? '');
+        $extension = strtolower(pathinfo($this->filename ?? '', PATHINFO_EXTENSION));
+
+        if (! str_starts_with($mimeType, 'image/') && ! in_array($extension, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'], true)) {
+            return false;
+        }
+
+        return ! in_array($extension, ['ico', 'tiff', 'tif'], true);
     }
 }
-

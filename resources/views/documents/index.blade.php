@@ -7,32 +7,53 @@
                 @include('afterburner-documents::components.breadcrumbs', ['folder' => $currentFolder])
             </div>
 
-            <!-- Filters -->
-            <div class="mb-6 bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
-                <!-- Filters Header -->
-                <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-                    <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">
-                        Search & Filters
-                    </h3>
-                    <button
-                        type="button"
-                        wire:click="toggleFilters"
-                        class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600"
-                    >
-                        <span>{{ $showFilters ? 'Hide' : 'Show' }} Filters</span>
-                        <svg 
-                            class="ml-2 h-4 w-4 transition-transform {{ $showFilters ? 'rotate-180' : '' }}" 
-                            fill="none" 
-                            stroke="currentColor" 
-                            viewBox="0 0 24 24"
+            <!-- Action Buttons -->
+            <div class="mb-6 flex gap-2 justify-end items-center">
+                @if($retentionEnabled)
+                    @can('viewAny', \Afterburner\Documents\Models\RetentionTag::class)
+                        <x-secondary-button
+                            wire:click="openRetentionTagsModal"
+                            no-spinner
                         >
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                        </svg>
-                    </button>
-                </div>
+                            Manage Retention Tags
+                        </x-secondary-button>
+                    @endcan
+                @endif
+                @can('create', [\Afterburner\Documents\Models\Document::class, $team])
+                    <x-button
+                        wire:click="openUploadModal"
+                        no-spinner
+                    >
+                        Upload Document
+                    </x-button>
+                @endcan
+                @can('create', [\Afterburner\Documents\Models\Folder::class, $team])
+                    <x-button
+                        wire:click="openFolderModal"
+                        no-spinner
+                    >
+                        New Folder
+                    </x-button>
+                @endcan
+                <x-secondary-button
+                    wire:click="toggleFilters"
+                    no-spinner
+                    class="mr-3 sm:mr-0"
+                >
+                    <span>Filters</span>
+                    <svg
+                        class="ml-2 h-4 w-4 transition-transform {{ $showFilters ? 'rotate-180' : '' }}"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                    >
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                </x-secondary-button>
+            </div>
 
-                <!-- Filters Content -->
-                @if($showFilters)
+            @if($showFilters)
+                <div class="mb-6 bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
                     <div class="p-6">
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                             <!-- Search Query -->
@@ -138,37 +159,8 @@
                             </div>
                         </div>
                     </div>
-                @endif
-            </div>
-
-            <!-- Action Buttons -->
-            <div class="mb-6 flex gap-2 justify-end">
-                @can('viewAny', \Afterburner\Documents\Models\RetentionTag::class)
-                    <x-secondary-button
-                        wire:click="openRetentionTagsModal"
-                        no-spinner
-                    >
-                        Manage Retention Tags
-                    </x-secondary-button>
-                @endcan
-                @can('create', [\Afterburner\Documents\Models\Document::class, $team])
-                    <x-button
-                        wire:click="openUploadModal"
-                        no-spinner
-                    >
-                        Upload Document
-                    </x-button>
-                @endcan
-                @can('create', [\Afterburner\Documents\Models\Folder::class, $team])
-                    <x-button
-                        wire:click="openFolderModal"
-                        no-spinner
-                        class="mr-3 sm:mr-0"
-                    >
-                        New Folder
-                    </x-button>
-                @endcan
-            </div>
+                </div>
+            @endif
 
             <!-- Documents and Folders List -->
             <div class="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
@@ -347,22 +339,33 @@
                                     </tr>
                                 @endforeach
 
-                                <div wire:poll.5s style="display: contents;">
+                                <div @if($hasActiveCloudUploads) wire:poll.5s @endif style="display: contents;">
                                 @foreach($documents as $document)
-                                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors group">
+                                    <tr @class([
+                                        'transition-colors group',
+                                        'hover:bg-gray-50 dark:hover:bg-gray-700' => $versioningEnabled,
+                                    ])>
                                         <td class="px-6 py-4 whitespace-nowrap">
-                                            <button
-                                                type="button"
-                                                wire:click="openDocumentViewer({{ $document->id }})"
-                                                class="flex items-center space-x-3 cursor-pointer w-full text-left"
-                                            >
+                                            @if($versioningEnabled)
+                                                <button
+                                                    type="button"
+                                                    wire:click="openDocumentViewer({{ $document->id }})"
+                                                    class="flex items-center space-x-3 cursor-pointer w-full text-left"
+                                                >
+                                            @else
+                                                <div class="flex items-center space-x-3 cursor-default w-full text-left">
+                                            @endif
                                                 {!! $document->getIconSvg('w-6 h-6') !!}
                                                 <div class="flex-1 min-w-0">
                                                     <div class="flex items-center space-x-2">
-                                                        <p class="text-sm font-medium text-gray-900 dark:text-gray-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 truncate">
+                                                        <p @class([
+                                                            'text-sm font-medium text-gray-900 dark:text-gray-100 truncate',
+                                                            'group-hover:text-indigo-600 dark:group-hover:text-indigo-400' => $versioningEnabled,
+                                                        ])>
                                                             {{ $document->name }}
                                                         </p>
-                                                        @if($document->getCurrentVersionNumber())
+                                                        @include('afterburner-documents::components.upload-status-icon', ['document' => $document])
+                                                        @if($versioningEnabled && $document->getCurrentVersionNumber())
                                                             <span class="px-1.5 py-0.5 text-xs font-medium rounded bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
                                                                 v{{ $document->getCurrentVersionNumber() }}
                                                             </span>
@@ -371,13 +374,23 @@
                                                     <p class="text-xs text-gray-500 dark:text-gray-400 truncate">
                                                         {{ $document->filename }}
                                                     </p>
+                                                    @if($hasActiveDocumentFilters)
+                                                        @include('afterburner-documents::components.document-folder-location', [
+                                                            'document' => $document,
+                                                            'allFolders' => $allFolders,
+                                                        ])
+                                                    @endif
                                                     @if($document->notes)
                                                         <p class="text-xs text-gray-400 dark:text-gray-500 mt-1 truncate" title="{{ $document->notes }}">
                                                             {{ Str::limit($document->notes, 50) }}
                                                         </p>
                                                     @endif
                                                 </div>
-                                            </button>
+                                            @if($versioningEnabled)
+                                                </button>
+                                            @else
+                                                </div>
+                                            @endif
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                                             {{ $document->uploader->name ?? 'N/A' }}
@@ -421,6 +434,22 @@
                                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
                                                         </svg>
                                                     </button>
+                                                @endcan
+                                                @can('view', $document)
+                                                    @if ($document->upload_status === 'completed' && $document->isPreviewableInBrowser())
+                                                        <button
+                                                            type="button"
+                                                            wire:click="openPreview({{ $document->id }})"
+                                                            wire:loading.attr="disabled"
+                                                            class="p-1 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded"
+                                                            title="Preview document"
+                                                        >
+                                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                                            </svg>
+                                                        </button>
+                                                    @endif
                                                 @endcan
                                                 @can('download', $document)
                                                     <a
@@ -468,13 +497,21 @@
     </div>
 
     <!-- Document Viewer -->
-    @if($viewingDocumentId)
+    @if($versioningEnabled && $viewingDocumentId)
         @php
             $viewingDocument = \Afterburner\Documents\Models\Document::find($viewingDocumentId);
         @endphp
         @if($viewingDocument)
             @livewire('documents.document-viewer', ['document' => $viewingDocument, 'autoOpen' => true], key('document-viewer-'.$viewingDocumentId))
         @endif
+    @endif
+
+    @if ($previewDocument && $previewUrl)
+        @include('afterburner-documents::components.document-preview-modal', [
+            'team' => $team,
+            'document' => $previewDocument,
+            'previewUrl' => $previewUrl,
+        ])
     @endif
 
 
@@ -486,6 +523,19 @@
 
         <x-slot name="content">
             <div class="space-y-4">
+                <div>
+                    <x-label for="uploadFiles" value="Files" />
+                    <x-filepond::upload 
+                        wire:model="uploadFiles"
+                        multiple
+                        :upload-url="route('teams.documents.upload.process', $team)"
+                        :chunk-size="config('afterburner-documents.upload.chunk_size', 5242880)"
+                        folder-id="currentFolderId"
+                        upload-notes="uploadNotes"
+                        :max-file-size="config('afterburner-documents.upload.max_file_size', 2147483648)"
+                        :accepted-file-types="config('afterburner-documents.upload.allowed_mime_types', [])"
+                    />
+                </div>
                 <div>
                     <x-label for="uploadNotes" value="Notes (Optional)" />
                     <textarea
@@ -499,15 +549,6 @@
                     <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
                         Optional notes that will be associated with all uploaded documents.
                     </p>
-                </div>
-                <div>
-                    <x-label for="uploadFiles" value="Files" />
-                    <x-filepond::upload 
-                        wire:model="uploadFiles"
-                        multiple
-                        :max-file-size="config('afterburner-documents.upload.max_file_size', 2147483648)"
-                        :accepted-file-types="config('afterburner-documents.upload.allowed_mime_types', [])"
-                    />
                 </div>
             </div>
         </x-slot>
@@ -645,7 +686,7 @@
                     Leave empty to keep the current file.
                 </p>
             </div>
-            @if($retentionTags->count() > 0)
+            @if($retentionEnabled && $retentionTags->count() > 0)
                 <div class="mt-4">
                     <x-label for="selectedRetentionTagId" value="Retention Tag (Optional)" />
                     <select
@@ -864,6 +905,7 @@
         </x-slot>
     </x-dialog-modal>
 
+    @if($retentionEnabled)
     <!-- Retention Tags Management Modal -->
     <x-dialog-modal wire:model.live="showingRetentionTagsModal" maxWidth="4xl">
         <x-slot name="title">
@@ -1190,5 +1232,6 @@
             </x-danger-button>
         </x-slot>
     </x-confirmation-modal>
+    @endif
 </div>
 

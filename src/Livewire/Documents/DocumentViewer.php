@@ -7,8 +7,11 @@ use Afterburner\Documents\Actions\RestoreDocumentVersion;
 use Afterburner\Documents\Actions\UpdateDocument;
 use Afterburner\Documents\Models\Document;
 use Afterburner\Documents\Models\DocumentVersion;
+use Afterburner\Documents\Support\DocumentUploadRules;
+use Afterburner\Documents\Support\TeamDocumentSettings;
 use App\Traits\InteractsWithBanner;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Component;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Spatie\LivewireFilepond\WithFilePond;
@@ -18,13 +21,18 @@ class DocumentViewer extends Component
     use InteractsWithBanner, WithFilePond;
 
     public Document $document;
+
     public bool $showing = false;
+
     public bool $autoOpen = false;
 
     // Edit modal
     public bool $showingEditModal = false;
+
     public $documentName = '';
+
     public $documentNotes = '';
+
     public $newFile = null;
 
     // Delete modal
@@ -32,6 +40,7 @@ class DocumentViewer extends Component
 
     // Restore version modal
     public bool $showingRestoreVersionModal = false;
+
     public ?DocumentVersion $versionToRestore = null;
 
     public function mount(Document $document, bool $autoOpen = false)
@@ -40,17 +49,21 @@ class DocumentViewer extends Component
         $this->autoOpen = $autoOpen;
 
         // Check permission
-        if (!Auth::user()->can('view', $document)) {
+        if (! Auth::user()->can('view', $document)) {
             abort(403, 'Access denied.');
         }
 
-        if ($autoOpen) {
+        if ($autoOpen && TeamDocumentSettings::versioningEnabledForTeam($document->team_id)) {
             $this->showing = true;
         }
     }
 
     public function open()
     {
+        if (! TeamDocumentSettings::versioningEnabledForTeam($this->document->team_id)) {
+            return;
+        }
+
         $this->showing = true;
     }
 
@@ -62,16 +75,17 @@ class DocumentViewer extends Component
 
     public function download()
     {
-        if (!Auth::user()->can('download', $this->document)) {
+        if (! Auth::user()->can('download', $this->document)) {
             abort(403, 'Access denied.');
         }
 
-        $disk = \Illuminate\Support\Facades\Storage::disk('r2');
-        if (!$disk->exists($this->document->storage_path)) {
+        $disk = Storage::disk('r2');
+        if (! $disk->exists($this->document->storage_path)) {
             $this->dispatch('banner-message',
                 style: 'danger',
                 message: __('Document file not found.'),
             );
+
             return;
         }
 
@@ -87,7 +101,7 @@ class DocumentViewer extends Component
 
     public function openEditModal()
     {
-        if (!Auth::user()->can('update', $this->document)) {
+        if (! Auth::user()->can('update', $this->document)) {
             abort(403, 'Access denied.');
         }
 
@@ -109,22 +123,11 @@ class DocumentViewer extends Component
      */
     public function validateUploadedFile($response = null): bool
     {
-        $maxFileSize = config('afterburner-documents.upload.max_file_size', 2147483648);
-        $allowedMimeTypes = config('afterburner-documents.upload.allowed_mime_types', []);
-
         $rules = [
             'documentName' => 'required|string|max:255',
             'documentNotes' => 'nullable|string|max:5000',
-            'newFile' => [
-                'nullable',
-                'file',
-                'max:'.$maxFileSize,
-            ],
+            'newFile' => DocumentUploadRules::livewireFileRules(false),
         ];
-
-        if (!empty($allowedMimeTypes)) {
-            $rules['newFile'][] = 'mimetypes:'.implode(',', $allowedMimeTypes);
-        }
 
         $this->validate($rules);
 
@@ -138,11 +141,11 @@ class DocumentViewer extends Component
      */
     public function updatedNewFile()
     {
-        if (!$this->newFile || !($this->newFile instanceof TemporaryUploadedFile)) {
+        if (! $this->newFile || ! ($this->newFile instanceof TemporaryUploadedFile)) {
             return;
         }
 
-        if (!Auth::user()->can('update', $this->document)) {
+        if (! Auth::user()->can('update', $this->document)) {
             abort(403, 'Access denied.');
         }
 
@@ -153,17 +156,18 @@ class DocumentViewer extends Component
         try {
             $attributes = [
                 'name' => $this->documentName,
-                'notes' => !empty($this->documentNotes) ? $this->documentNotes : null,
+                'notes' => ! empty($this->documentNotes) ? $this->documentNotes : null,
             ];
-            $fileContent = file_get_contents($this->newFile->getRealPath());
             $attributes['filename'] = $this->newFile->getClientOriginalName();
             $attributes['mime_type'] = $this->newFile->getMimeType();
             $attributes['size'] = $this->newFile->getSize();
 
+            $tempPath = $this->newFile->getRealPath();
+
             app(UpdateDocument::class)->execute(
                 $this->document,
                 $attributes,
-                $fileContent,
+                file_get_contents($tempPath),
                 Auth::user()
             );
 
@@ -186,7 +190,7 @@ class DocumentViewer extends Component
 
     public function updateDocument()
     {
-        if (!Auth::user()->can('update', $this->document)) {
+        if (! Auth::user()->can('update', $this->document)) {
             abort(403, 'Access denied.');
         }
 
@@ -208,7 +212,7 @@ class DocumentViewer extends Component
         try {
             $attributes = [
                 'name' => $this->documentName,
-                'notes' => !empty($this->documentNotes) ? $this->documentNotes : null,
+                'notes' => ! empty($this->documentNotes) ? $this->documentNotes : null,
             ];
 
             app(UpdateDocument::class)->execute(
@@ -231,7 +235,7 @@ class DocumentViewer extends Component
 
     public function confirmDelete()
     {
-        if (!Auth::user()->can('delete', $this->document)) {
+        if (! Auth::user()->can('delete', $this->document)) {
             abort(403, 'Access denied.');
         }
 
@@ -245,7 +249,7 @@ class DocumentViewer extends Component
 
     public function deleteDocument()
     {
-        if (!Auth::user()->can('delete', $this->document)) {
+        if (! Auth::user()->can('delete', $this->document)) {
             abort(403, 'Access denied.');
         }
 
@@ -267,7 +271,7 @@ class DocumentViewer extends Component
 
     public function confirmRestoreVersion(DocumentVersion $version)
     {
-        if (!Auth::user()->can('restoreVersion', $this->document)) {
+        if (! Auth::user()->can('restoreVersion', $this->document)) {
             abort(403, 'Access denied.');
         }
 
@@ -283,11 +287,11 @@ class DocumentViewer extends Component
 
     public function restoreVersion()
     {
-        if (!$this->versionToRestore) {
+        if (! $this->versionToRestore) {
             return;
         }
 
-        if (!Auth::user()->can('restoreVersion', $this->document)) {
+        if (! Auth::user()->can('restoreVersion', $this->document)) {
             abort(403, 'Access denied.');
         }
 
@@ -316,9 +320,18 @@ class DocumentViewer extends Component
             ->with(['creator', 'document.team'])
             ->get();
 
+        $previewUrl = null;
+        if ($this->document->upload_status === 'completed' && $this->document->isPreviewableInBrowser()) {
+            $previewUrl = route('teams.documents.preview', [
+                'team' => $this->document->team,
+                'document' => $this->document,
+            ]);
+        }
+
         return view('afterburner-documents::documents.document-viewer', [
             'versions' => $versions,
+            'versioningEnabled' => TeamDocumentSettings::versioningEnabledForTeam($this->document->team_id),
+            'previewUrl' => $previewUrl,
         ]);
     }
 }
-

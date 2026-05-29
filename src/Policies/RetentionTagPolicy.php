@@ -3,6 +3,10 @@
 namespace Afterburner\Documents\Policies;
 
 use Afterburner\Documents\Models\RetentionTag;
+use Afterburner\Documents\Support\SubscriptionEntitlementGate;
+use Afterburner\Documents\Support\TeamDocumentSettings;
+use Afterburner\Documents\Support\TeamPermissionGate;
+use App\Models\Team;
 use App\Models\User;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
@@ -15,7 +19,15 @@ class RetentionTagPolicy
      */
     public function viewAny(User $user): bool
     {
-        return true;
+        if (! $user->currentTeam) {
+            return false;
+        }
+
+        if (! TeamDocumentSettings::retentionEnabledForTeam($user->currentTeam)) {
+            return false;
+        }
+
+        return SubscriptionEntitlementGate::allows($user->currentTeam);
     }
 
     /**
@@ -24,12 +36,15 @@ class RetentionTagPolicy
     public function view(User $user, RetentionTag $retentionTag): bool
     {
         // User must belong to the team
-        if (!$user->belongsToTeam($retentionTag->team)) {
+        if (! $user->belongsToTeam($retentionTag->team)) {
             return false;
         }
 
-        // Check for view_documents permission (retention tags are part of documents)
-        return $user->hasPermission('view_documents', $retentionTag->team->id);
+        if (! TeamDocumentSettings::retentionEnabledForTeam($retentionTag->team)) {
+            return false;
+        }
+
+        return $this->allowsRetentionTagAction($user, $retentionTag->team, 'view_documents');
     }
 
     /**
@@ -38,12 +53,15 @@ class RetentionTagPolicy
     public function create(User $user, $team): bool
     {
         // User must belong to the team
-        if (!$user->belongsToTeam($team)) {
+        if (! $user->belongsToTeam($team)) {
             return false;
         }
 
-        // Check for manage_retention_tags permission
-        return $user->hasPermission('manage_retention_tags', $team->id);
+        if (! TeamDocumentSettings::retentionEnabledForTeam($team)) {
+            return false;
+        }
+
+        return $this->allowsRetentionTagAction($user, $team, 'manage_retention_tags');
     }
 
     /**
@@ -52,12 +70,15 @@ class RetentionTagPolicy
     public function update(User $user, RetentionTag $retentionTag): bool
     {
         // User must belong to the team
-        if (!$user->belongsToTeam($retentionTag->team)) {
+        if (! $user->belongsToTeam($retentionTag->team)) {
             return false;
         }
 
-        // Check for manage_retention_tags permission
-        return $user->hasPermission('manage_retention_tags', $retentionTag->team->id);
+        if (! TeamDocumentSettings::retentionEnabledForTeam($retentionTag->team)) {
+            return false;
+        }
+
+        return $this->allowsRetentionTagAction($user, $retentionTag->team, 'manage_retention_tags');
     }
 
     /**
@@ -66,12 +87,23 @@ class RetentionTagPolicy
     public function delete(User $user, RetentionTag $retentionTag): bool
     {
         // User must belong to the team
-        if (!$user->belongsToTeam($retentionTag->team)) {
+        if (! $user->belongsToTeam($retentionTag->team)) {
             return false;
         }
 
-        // Check for manage_retention_tags permission
-        return $user->hasPermission('manage_retention_tags', $retentionTag->team->id);
+        if (! TeamDocumentSettings::retentionEnabledForTeam($retentionTag->team)) {
+            return false;
+        }
+
+        return $this->allowsRetentionTagAction($user, $retentionTag->team, 'manage_retention_tags');
+    }
+
+    protected function allowsRetentionTagAction(User $user, Team $team, string $permission): bool
+    {
+        if (! SubscriptionEntitlementGate::allows($team)) {
+            return false;
+        }
+
+        return TeamPermissionGate::allows($user, $team->id, $permission);
     }
 }
-

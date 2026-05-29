@@ -5,108 +5,133 @@ namespace Afterburner\Documents\Actions;
 use Afterburner\Documents\Models\Document;
 use Afterburner\Documents\Models\DocumentVersion;
 use Afterburner\Documents\Services\StorageService;
+use Afterburner\Documents\Support\TeamDocumentSettings;
 use App\Models\AuditLog;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 
 class UpdateDocument
 {
     public function __construct(
         protected StorageService $storageService
-    ) {
-    }
+    ) {}
 
     /**
-     * Update a document and create a new version.
+     * Update a document and optionally replace its file.
      *
-     * @param  Document  $document
-     * @param  array  $attributes
      * @param  string|null  $newFileContent  New file content if updating file
-     * @param  User  $user
-     * @return Document
      */
     public function execute(Document $document, array $attributes, ?string $newFileContent, User $user): Document
     {
         return DB::transaction(function () use ($document, $attributes, $newFileContent, $user) {
             $oldAttributes = $document->getAttributes();
 
-            // Create version of current document if versioning is enabled
-            if (config('afterburner-documents.versioning.enabled', true) &&
-                config('afterburner-documents.versioning.auto_version_on_update', true) &&
-                $newFileContent) {
-                // Copy current version to version history
-                $currentVersion = $document->currentVersion();
-                if ($currentVersion) {
-                    // Version already exists, no need to create again
-                } else {
-                    // Create version from current document
-                    $document->createVersion(
-                        $document->storage_path,
-                        $document->size,
-                        $user
-                    );
-                }
-            }
-
-            // Update document
-            $document->update($attributes);
-
-            // If new file content provided, upload it
             if ($newFileContent) {
-                $newStoragePath = $this->storageService->generateStoragePath($document);
-                $this->storageService->storeDocument($newFileContent, $newStoragePath);
-
-                // Create new version
-                $newVersion = $document->createVersion($newStoragePath, strlen($newFileContent), $user);
-
-                $document->update([
-                    'storage_path' => $newStoragePath,
-                    'size' => strlen($newFileContent),
-                ]);
-
-                // Create audit log for version creation
-                AuditLog::create([
-                    'user_id' => $user->id,
-                    'action_type' => 'created',
-                    'category' => 'documents',
-                    'event_name' => 'document.version.created',
-                    'auditable_type' => DocumentVersion::class,
-                    'auditable_id' => $newVersion->id,
-                    'team_id' => $document->team_id,
-                    'changes' => [
-                        'version_number' => $newVersion->version_number,
-                        'document_id' => $document->id,
-                    ],
-                ]);
+                $this->replaceDocumentFile($document, $attributes, $newFileContent, $user);
+            } elseif (! empty($attributes)) {
+                $document->update($attributes);
             }
 
-            // Create audit log for document update
-            $changes = [];
-            foreach ($attributes as $key => $value) {
-                if (isset($oldAttributes[$key]) && $oldAttributes[$key] != $value) {
-                    $changes[$key] = [
-                        'before' => $oldAttributes[$key],
-                        'after' => $value,
-                    ];
-                }
-            }
-
-            if (!empty($changes)) {
-                AuditLog::create([
-                    'user_id' => $user->id,
-                    'action_type' => 'updated',
-                    'category' => 'documents',
-                    'event_name' => 'document.updated',
-                    'auditable_type' => Document::class,
-                    'auditable_id' => $document->id,
-                    'team_id' => $document->team_id,
-                    'changes' => $changes,
-                ]);
-            }
+            $this->logDocumentUpdate($document, $oldAttributes, $attributes, $user);
 
             return $document->fresh();
         });
     }
-}
 
+    protected function replaceDocumentFile(
+        Document $document,
+        array $attributes,
+        string $newFileContent,
+        User $user
+    ): void {
+        $oldStoragePath = $document->storage_path;
+        $oldSize = (int) $document->size;
+
+        if (TeamDocumentSettings::versioningEnabledForTeam($document->team_id)
+            && config('afterburner-documents.versioning.auto_version_on_update', true)
+            && $oldStoragePath !== ''
+            && $this->storageService->exists($oldStoragePath)) {
+            $this->archiveCurrentFileAsVersion($document, $oldStoragePath, $oldSize, $user);
+        }
+
+        $document->update($attributes);
+
+        $storagePath = $oldStoragePath !== ''
+            ? $oldStoragePath
+            : $this->storageService->generateStoragePath($document);
+
+        if (! $this->storageService->storeDocument($newFileContent, $storagePath)) {
+            throw new \RuntimeException(
+                'Failed to store document in storage. '.$this->storageService->storageFailureMessage()
+            );
+        }
+
+        $document->update([
+            'storage_path' => $storagePath,
+            'size' => strlen($newFileContent),
+        ]);
+    }
+
+    protected function archiveCurrentFileAsVersion(
+        Document $document,
+        string $storagePath,
+        int $size,
+        User $user
+    ): void {
+        $nextVersionNumber = ($document->versions()->max('version_number') ?? 0) + 1;
+        $versionPath = $this->storageService->generateVersionStoragePath($document, $nextVersionNumber);
+
+        if (! $this->storageService->copy($storagePath, $versionPath)) {
+            throw new \RuntimeException('Failed to archive the current document version before replacing the file.');
+        }
+
+        $version = $document->createVersion($versionPath, $size, $user);
+
+        AuditLog::create([
+            'user_id' => $user->id,
+            'action_type' => 'created',
+            'category' => 'documents',
+            'event_name' => 'document.version.created',
+            'auditable_type' => DocumentVersion::class,
+            'auditable_id' => $version->id,
+            'team_id' => $document->team_id,
+            'changes' => [
+                'version_number' => $version->version_number,
+                'document_id' => $document->id,
+            ],
+        ]);
+    }
+
+    protected function logDocumentUpdate(
+        Document $document,
+        array $oldAttributes,
+        array $attributes,
+        User $user
+    ): void {
+        $changes = [];
+
+        foreach ($attributes as $key => $value) {
+            if (isset($oldAttributes[$key]) && $oldAttributes[$key] != $value) {
+                $changes[$key] = [
+                    'before' => $oldAttributes[$key],
+                    'after' => $value,
+                ];
+            }
+        }
+
+        if (empty($changes)) {
+            return;
+        }
+
+        AuditLog::create([
+            'user_id' => $user->id,
+            'action_type' => 'updated',
+            'category' => 'documents',
+            'event_name' => 'document.updated',
+            'auditable_type' => Document::class,
+            'auditable_id' => $document->id,
+            'team_id' => $document->team_id,
+            'changes' => $changes,
+        ]);
+    }
+}

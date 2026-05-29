@@ -2,8 +2,24 @@
 
 namespace Afterburner\Documents\Providers;
 
+use Afterburner\Documents\Console\Commands\CleanupUploadSessionsCommand;
+use Afterburner\Documents\Console\Commands\InstallCommand;
+use Afterburner\Documents\Database\Seeders\DocumentPermissionsSeeder;
 use Afterburner\Documents\Livewire\Documents\DocumentViewer;
 use Afterburner\Documents\Livewire\Documents\Index;
+use Afterburner\Documents\Livewire\Settings\DocumentsSettings;
+use Afterburner\Documents\Models\Document;
+use Afterburner\Documents\Models\Folder;
+use Afterburner\Documents\Models\RetentionTag;
+use Afterburner\Documents\Policies\DocumentPolicy;
+use Afterburner\Documents\Policies\FolderPolicy;
+use Afterburner\Documents\Policies\RetentionTagPolicy;
+use App\Models\Team;
+use App\Support\Navigation;
+use App\Support\PackageSeederRegistry;
+use App\Support\SystemSettings;
+use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use Livewire\Livewire;
 
@@ -15,7 +31,7 @@ class DocumentsServiceProvider extends ServiceProvider
     public function register(): void
     {
         // Check if template is installed (optional safety check)
-        if (!class_exists(\App\Models\Team::class)) {
+        if (! class_exists(Team::class)) {
             return;
         }
 
@@ -31,7 +47,7 @@ class DocumentsServiceProvider extends ServiceProvider
     public function boot(): void
     {
         // Check if template is installed
-        if (!class_exists(\App\Models\Team::class)) {
+        if (! class_exists(Team::class)) {
             return;
         }
 
@@ -65,16 +81,30 @@ class DocumentsServiceProvider extends ServiceProvider
         // Register Livewire components
         $this->registerLivewireComponents();
 
+        // Override Spatie FilePond upload view after all providers have booted
+        $this->app->booted(function () {
+            Blade::component('afterburner-documents::filepond.upload', 'filepond::upload');
+        });
+
         // Register policies
         $this->registerPolicies();
+        $this->registerSubscriptionGates();
+
+        // Skip noisy upload chunk/init HTTP requests from audit logging
+        $this->registerAuditSkipRoutes();
 
         // Register navigation menu item
         $this->registerNavigation();
 
+        // Register system settings section
+        $this->registerSystemSettings();
+        $this->registerPackageSeeder();
+
         // Register Artisan commands
         if ($this->app->runningInConsole()) {
             $this->commands([
-                \Afterburner\Documents\Console\Commands\InstallCommand::class,
+                InstallCommand::class,
+                CleanupUploadSessionsCommand::class,
             ]);
         }
     }
@@ -88,36 +118,63 @@ class DocumentsServiceProvider extends ServiceProvider
     {
         // Only register if not already configured in filesystems.php
         $existingDisks = config('filesystems.disks', []);
-        
-        if (!isset($existingDisks['r2'])) {
-            $diskConfig = config('afterburner-documents.filesystem_disk', []);
-            
-            if (!empty($diskConfig)) {
-                config([
-                    'filesystems.disks.r2' => $diskConfig,
-                ]);
-            }
+
+        if (isset($existingDisks['r2'])) {
+            return;
         }
+
+        $diskConfig = config('afterburner-documents.filesystem_disk', []);
+        $bucket = $diskConfig['bucket'] ?? '';
+        $key = $diskConfig['key'] ?? '';
+
+        if (empty($bucket) || empty($key)) {
+            config([
+                'filesystems.disks.r2' => [
+                    'driver' => 'local',
+                    'root' => storage_path('app/documents'),
+                    'throw' => false,
+                ],
+            ]);
+        } elseif (! empty($diskConfig)) {
+            config([
+                'filesystems.disks.r2' => $diskConfig,
+            ]);
+        }
+
+        config([
+            'filesystems.disks.documents-uploads' => [
+                'driver' => 'local',
+                'root' => storage_path('app/documents/uploads'),
+                'throw' => false,
+            ],
+        ]);
     }
 
     /**
      * Register policies.
      */
+    protected function registerSubscriptionGates(): void
+    {
+        Gate::define('documents.access-team', function ($user, Team $team) {
+            return app(DocumentPolicy::class)->access($user, $team);
+        });
+    }
+
     protected function registerPolicies(): void
     {
-        \Illuminate\Support\Facades\Gate::policy(
-            \Afterburner\Documents\Models\Document::class,
-            \Afterburner\Documents\Policies\DocumentPolicy::class
+        Gate::policy(
+            Document::class,
+            DocumentPolicy::class
         );
 
-        \Illuminate\Support\Facades\Gate::policy(
-            \Afterburner\Documents\Models\Folder::class,
-            \Afterburner\Documents\Policies\FolderPolicy::class
+        Gate::policy(
+            Folder::class,
+            FolderPolicy::class
         );
 
-        \Illuminate\Support\Facades\Gate::policy(
-            \Afterburner\Documents\Models\RetentionTag::class,
-            \Afterburner\Documents\Policies\RetentionTagPolicy::class
+        Gate::policy(
+            RetentionTag::class,
+            RetentionTagPolicy::class
         );
     }
 
@@ -128,6 +185,23 @@ class DocumentsServiceProvider extends ServiceProvider
     {
         Livewire::component('documents.index', Index::class);
         Livewire::component('documents.document-viewer', DocumentViewer::class);
+        Livewire::component('documents.settings.documents-settings', DocumentsSettings::class);
+    }
+
+    protected function registerAuditSkipRoutes(): void
+    {
+        if (! config()->has('audit.skip_routes')) {
+            return;
+        }
+
+        $skipRoutes = config('afterburner-documents.audit.skip_routes', []);
+
+        config([
+            'audit.skip_routes' => array_values(array_unique(array_merge(
+                config('audit.skip_routes', []),
+                $skipRoutes
+            ))),
+        ]);
     }
 
     /**
@@ -136,32 +210,66 @@ class DocumentsServiceProvider extends ServiceProvider
     protected function registerNavigation(): void
     {
         // Check if Navigation class exists (from main afterburner project)
-        if (!class_exists(\App\Support\Navigation::class)) {
+        if (! class_exists(Navigation::class)) {
             return;
         }
 
-        \App\Support\Navigation::register([
+        Navigation::register([
             'label' => 'Documents',
             'route' => 'teams.documents.index',
             'route_params' => function () {
                 $user = auth()->user();
-                if (!$user || !$user->currentTeam) {
+                if (! $user || ! $user->currentTeam) {
                     return [];
                 }
+
                 return ['team' => $user->currentTeam->id];
             },
             'icon' => 'document-text',
-            'order' => 20,
+            'order' => 30,
             'permission' => function ($user) {
-                if (!$user || !$user->currentTeam) {
+                if (! $user || ! $user->currentTeam) {
                     return false;
                 }
-                return $user->can('viewAny', \Afterburner\Documents\Models\Document::class);
+
+                return Gate::forUser($user)->check('documents.access-team', $user->currentTeam);
             },
             'active' => function () {
                 return request()->routeIs('teams.documents.*');
             },
         ]);
     }
-}
 
+    protected function registerSystemSettings(): void
+    {
+        if (! class_exists(SystemSettings::class)) {
+            return;
+        }
+
+        if (! config('afterburner-documents.enabled', true)) {
+            return;
+        }
+
+        SystemSettings::register([
+            'key' => 'documents',
+            'order' => 10,
+            'component' => 'documents.settings.documents-settings',
+            'params' => fn ($team) => ['team' => $team],
+            'permission' => function ($user) {
+                if (! $user || ! $user->currentTeam) {
+                    return false;
+                }
+
+                return $user->can('update', $user->currentTeam)
+                    && Gate::forUser($user)->check('documents.access-team', $user->currentTeam);
+            },
+        ]);
+    }
+
+    protected function registerPackageSeeder(): void
+    {
+        if (class_exists(PackageSeederRegistry::class)) {
+            PackageSeederRegistry::register(DocumentPermissionsSeeder::class);
+        }
+    }
+}

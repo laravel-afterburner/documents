@@ -3,6 +3,10 @@
 namespace Afterburner\Documents\Policies;
 
 use Afterburner\Documents\Models\Document;
+use Afterburner\Documents\Support\SubscriptionEntitlementGate;
+use Afterburner\Documents\Support\TeamDocumentSettings;
+use Afterburner\Documents\Support\TeamPermissionGate;
+use App\Models\Team;
 use App\Models\User;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
@@ -15,7 +19,27 @@ class DocumentPolicy
      */
     public function viewAny(User $user): bool
     {
-        return true;
+        if (! $user->currentTeam) {
+            return false;
+        }
+
+        return $this->access($user, $user->currentTeam);
+    }
+
+    /**
+     * Determine whether the user can access documents for the given team.
+     */
+    public function access(User $user, Team $team): bool
+    {
+        if (! $user->belongsToTeam($team)) {
+            return false;
+        }
+
+        if (! SubscriptionEntitlementGate::allows($team)) {
+            return false;
+        }
+
+        return TeamPermissionGate::allows($user, $team->id, 'view_documents');
     }
 
     /**
@@ -24,12 +48,11 @@ class DocumentPolicy
     public function view(User $user, Document $document): bool
     {
         // User must belong to the team
-        if (!$user->belongsToTeam($document->team)) {
+        if (! $user->belongsToTeam($document->team)) {
             return false;
         }
 
-        // Check for view_documents permission
-        return $user->hasPermission('view_documents', $document->team->id);
+        return $this->allowsDocumentAction($user, $document->team, 'view_documents');
     }
 
     /**
@@ -38,12 +61,11 @@ class DocumentPolicy
     public function create(User $user, $team): bool
     {
         // User must belong to the team
-        if (!$user->belongsToTeam($team)) {
+        if (! $user->belongsToTeam($team)) {
             return false;
         }
 
-        // Check for create_documents permission
-        return $user->hasPermission('create_documents', $team->id);
+        return $this->allowsDocumentAction($user, $team, 'create_documents');
     }
 
     /**
@@ -52,12 +74,11 @@ class DocumentPolicy
     public function update(User $user, Document $document): bool
     {
         // User must belong to the team
-        if (!$user->belongsToTeam($document->team)) {
+        if (! $user->belongsToTeam($document->team)) {
             return false;
         }
 
-        // Check for edit_documents permission
-        return $user->hasPermission('edit_documents', $document->team->id);
+        return $this->allowsDocumentAction($user, $document->team, 'edit_documents');
     }
 
     /**
@@ -66,12 +87,11 @@ class DocumentPolicy
     public function delete(User $user, Document $document): bool
     {
         // User must belong to the team
-        if (!$user->belongsToTeam($document->team)) {
+        if (! $user->belongsToTeam($document->team)) {
             return false;
         }
 
-        // Check for delete_documents permission
-        if (!$user->hasPermission('delete_documents', $document->team->id)) {
+        if (! $this->allowsDocumentAction($user, $document->team, 'delete_documents')) {
             return false;
         }
 
@@ -89,12 +109,11 @@ class DocumentPolicy
     public function download(User $user, Document $document): bool
     {
         // User must belong to the team
-        if (!$user->belongsToTeam($document->team)) {
+        if (! $user->belongsToTeam($document->team)) {
             return false;
         }
 
-        // Check for download_documents permission
-        return $user->hasPermission('download_documents', $document->team->id);
+        return $this->allowsDocumentAction($user, $document->team, 'download_documents');
     }
 
     /**
@@ -103,12 +122,23 @@ class DocumentPolicy
     public function restoreVersion(User $user, Document $document): bool
     {
         // User must belong to the team
-        if (!$user->belongsToTeam($document->team)) {
+        if (! $user->belongsToTeam($document->team)) {
             return false;
         }
 
-        // Check for restore_document_versions permission
-        return $user->hasPermission('restore_document_versions', $document->team->id);
+        if (! TeamDocumentSettings::versioningEnabledForTeam($document->team)) {
+            return false;
+        }
+
+        return $this->allowsDocumentAction($user, $document->team, 'restore_document_versions');
+    }
+
+    protected function allowsDocumentAction(User $user, Team $team, string $permission): bool
+    {
+        if (! SubscriptionEntitlementGate::allows($team)) {
+            return false;
+        }
+
+        return TeamPermissionGate::allows($user, $team->id, $permission);
     }
 }
-

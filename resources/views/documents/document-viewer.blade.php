@@ -7,7 +7,7 @@
                 </div>
                 <div class="flex items-center space-x-2">
                     <span>{{ $document->name }}</span>
-                    @if($document->getCurrentVersionNumber())
+                    @if($versioningEnabled && $document->getCurrentVersionNumber())
                         <span class="px-1.5 py-0.5 text-xs font-medium rounded bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
                             v{{ $document->getCurrentVersionNumber() }}
                         </span>
@@ -18,6 +18,14 @@
 
         <x-slot name="content">
             <div class="space-y-4">
+                @if ($previewUrl)
+                    @include('afterburner-documents::components.document-preview-frame', [
+                        'document' => $document,
+                        'previewUrl' => $previewUrl,
+                        'class' => 'mb-2',
+                    ])
+                @endif
+
                 <div>
                     <dl class="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2 text-sm">
                         <div>
@@ -62,7 +70,7 @@
                     </div>
                 @endif
 
-                @if($versions->count() > 0)
+                @if($versioningEnabled && $versions->count() > 0)
                     <div>
                         <h3 class="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">Version History</h3>
                         <div class="space-y-2">
@@ -117,6 +125,14 @@
                     Download
                 </x-button>
             @endcan
+            @if ($previewUrl)
+                <a href="{{ $previewUrl }}"
+                   target="_blank"
+                   rel="noopener noreferrer"
+                   class="ms-3 inline-flex items-center px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-500 rounded-md font-semibold text-xs text-gray-700 dark:text-gray-300 uppercase tracking-widest shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition ease-in-out duration-150">
+                    Open in tab
+                </a>
+            @endif
         </x-slot>
     </x-dialog-modal>
 
@@ -152,18 +168,33 @@
                     <x-input-error for="documentNotes" class="mt-2" />
                 </div>
 
-                <div>
-                    <x-label for="newFile" value="Upload New Version (Optional)" />
-                    <x-filepond::upload 
-                        wire:model="newFile"
-                        :max-file-size="config('afterburner-documents.upload.max_file_size', 2147483648)"
-                        :accepted-file-types="config('afterburner-documents.upload.allowed_mime_types', [])"
-                    />
-                    <x-input-error for="newFile" class="mt-2" />
-                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                        Leave empty to keep the current file. Uploading a new file will create a new version and automatically update the document.
-                    </p>
-                </div>
+                @if($versioningEnabled)
+                    <div>
+                        <x-label for="newFile" value="Upload New Version (Optional)" />
+                        <x-filepond::upload 
+                            wire:model="newFile"
+                            :max-file-size="config('afterburner-documents.upload.max_file_size', 2147483648)"
+                            :accepted-file-types="config('afterburner-documents.upload.allowed_mime_types', [])"
+                        />
+                        <x-input-error for="newFile" class="mt-2" />
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                            Leave empty to keep the current file. Uploading a new file will create a new version and automatically update the document.
+                        </p>
+                    </div>
+                @else
+                    <div>
+                        <x-label for="newFile" value="Replace File (Optional)" />
+                        <x-filepond::upload 
+                            wire:model="newFile"
+                            :max-file-size="config('afterburner-documents.upload.max_file_size', 2147483648)"
+                            :accepted-file-types="config('afterburner-documents.upload.allowed_mime_types', [])"
+                        />
+                        <x-input-error for="newFile" class="mt-2" />
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                            Leave empty to keep the current file.
+                        </p>
+                    </div>
+                @endif
             </div>
         </x-slot>
 
@@ -197,6 +228,7 @@
         </x-slot>
     </x-confirmation-modal>
 
+    @if($versioningEnabled)
     <!-- Restore Version Confirmation Modal -->
     <x-confirmation-modal wire:model.live="showingRestoreVersionModal">
         <x-slot name="title">
@@ -221,5 +253,6 @@
             </x-button>
         </x-slot>
     </x-confirmation-modal>
+    @endif
 </div>
 

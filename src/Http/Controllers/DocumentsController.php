@@ -3,7 +3,7 @@
 namespace Afterburner\Documents\Http\Controllers;
 
 use App\Models\Team;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
 
 class DocumentsController
@@ -13,10 +13,7 @@ class DocumentsController
      */
     public function index(Team $team): View
     {
-        // Ensure user belongs to team
-        if (!Auth::user()->belongsToTeam($team)) {
-            abort(403, 'Access denied.');
-        }
+        Gate::authorize('documents.access-team', $team);
 
         return view('afterburner-documents::documents.show', [
             'team' => $team,
@@ -28,10 +25,7 @@ class DocumentsController
      */
     public function folder(Team $team, string $folder_slug): View
     {
-        // Ensure user belongs to team
-        if (!Auth::user()->belongsToTeam($team)) {
-            abort(403, 'Access denied.');
-        }
+        Gate::authorize('documents.access-team', $team);
 
         return view('afterburner-documents::documents.show', [
             'team' => $team,
@@ -39,4 +33,3 @@ class DocumentsController
         ]);
     }
 }
-

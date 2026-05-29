@@ -4,7 +4,9 @@ namespace Afterburner\Documents\Concerns;
 
 use Afterburner\Documents\Models\Document;
 use Afterburner\Documents\Models\Folder;
+use Afterburner\Documents\Models\TeamDocumentSetting;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 trait HasDocuments
 {
@@ -31,5 +33,12 @@ trait HasDocuments
     {
         return $this->folders()->whereNull('parent_id');
     }
-}
 
+    /**
+     * Get document settings for this team.
+     */
+    public function documentSettings(): HasOne
+    {
+        return $this->hasOne(TeamDocumentSetting::class, 'team_id');
+    }
+}

@@ -3,32 +3,33 @@
 namespace Afterburner\Documents\Actions;
 
 use Afterburner\Documents\Models\Document;
+use Afterburner\Documents\Services\StorageService;
 use App\Models\AuditLog;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
 class DeleteDocument
 {
+    public function __construct(
+        protected StorageService $storageService
+    ) {}
+
     /**
-     * Delete a document.
-     *
-     * @param  Document  $document
-     * @param  User  $user
-     * @param  bool  $permanent  Whether to permanently delete (including from storage)
-     * @return bool
+     * Delete a document and remove its files from storage.
      */
     public function execute(Document $document, User $user, bool $permanent = false): bool
     {
         return DB::transaction(function () use ($document, $user, $permanent) {
-            // Check if document is protected by retention
             if ($document->isRetentionProtected()) {
                 $expiresAt = $document->retention_expires_at->format('Y-m-d H:i:s');
+
                 throw new \Exception(
                     "Cannot delete document '{$document->name}'. It is protected by retention until {$expiresAt}."
                 );
             }
 
-            // Create audit log before deletion
+            $document->loadMissing('versions');
+
             AuditLog::create([
                 'user_id' => $user->id,
                 'action_type' => 'deleted',
@@ -44,23 +45,12 @@ class DeleteDocument
                 ],
             ]);
 
+            $this->storageService->deleteDocumentStorage($document);
+
             if ($permanent) {
-                // Delete from storage
-                if ($document->storage_path) {
-                    \Illuminate\Support\Facades\Storage::disk('r2')->delete($document->storage_path);
-                }
-
-                // Delete versions
-                foreach ($document->versions as $version) {
-                    if ($version->storage_path) {
-                        \Illuminate\Support\Facades\Storage::disk('r2')->delete($version->storage_path);
-                    }
-                }
-
-                // Force delete from database
+                $document->versions()->delete();
                 $document->forceDelete();
             } else {
-                // Soft delete
                 $document->delete();
             }
 
@@ -68,4 +58,3 @@ class DeleteDocument
         });
     }
 }
-

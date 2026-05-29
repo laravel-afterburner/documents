@@ -36,17 +36,17 @@ class InstallCommand extends Command
             '--force' => true,
         ]);
 
-        // Publish migrations
-        $this->info('Publishing migrations...');
-        $this->call('vendor:publish', [
-            '--tag' => 'afterburner-documents-migrations',
-            '--force' => true,
-        ]);
-
         // Publish views
         $this->info('Publishing views...');
         $this->call('vendor:publish', [
             '--tag' => 'afterburner-documents-assets',
+            '--force' => true,
+        ]);
+
+        // Publish FilePond assets for static delivery (required for uploads)
+        $this->info('Publishing FilePond assets...');
+        $this->call('vendor:publish', [
+            '--tag' => 'livewire-filepond-assets',
             '--force' => true,
         ]);
 
@@ -63,7 +63,7 @@ class InstallCommand extends Command
         // Seed permissions
         if ($this->confirm('Seed document permissions?', true)) {
             $this->info('Seeding document permissions...');
-            $seeder = new DocumentPermissionsSeeder();
+            $seeder = new DocumentPermissionsSeeder;
             $seeder->setCommand($this);
             $seeder->run();
         }
@@ -74,6 +74,7 @@ class InstallCommand extends Command
         $this->comment('1. Configure your Cloudflare R2 credentials in .env');
         $this->comment('2. The R2 disk has been automatically configured from config/afterburner-documents.php');
         $this->comment('3. Visit /teams/{team}/documents to start using documents');
+        $this->comment('Note: Document migrations load automatically from the package.');
 
         return Command::SUCCESS;
     }
@@ -97,6 +98,7 @@ class InstallCommand extends Command
             'AFTERBURNER_DOCUMENTS_CHUNK_SIZE=5242880',
             'AFTERBURNER_DOCUMENTS_MAX_FILE_SIZE=2147483648',
             'AFTERBURNER_DOCUMENTS_MAX_CHUNKS=5000',
+            'AFTERBURNER_DOCUMENTS_SESSION_TTL_HOURS=24',
             'AFTERBURNER_DOCUMENTS_STORAGE_PATH=documents/{team_id}/{year}/{month}/{document_id}',
             'AFTERBURNER_DOCUMENTS_VERSIONING_ENABLED=true',
             'AFTERBURNER_DOCUMENTS_AUTO_VERSION_ON_UPDATE=true',
@@ -108,7 +110,7 @@ class InstallCommand extends Command
         if (File::exists($envPath)) {
             $envContent = File::get($envPath);
             foreach ($envVars as $var) {
-                if ($var && !str_contains($envContent, explode('=', $var)[0])) {
+                if ($var && ! str_contains($envContent, explode('=', $var)[0])) {
                     File::append($envPath, "\n".$var);
                 }
             }
@@ -119,11 +121,10 @@ class InstallCommand extends Command
         if (File::exists($envExamplePath)) {
             $envExampleContent = File::get($envExamplePath);
             foreach ($envVars as $var) {
-                if ($var && !str_contains($envExampleContent, explode('=', $var)[0])) {
+                if ($var && ! str_contains($envExampleContent, explode('=', $var)[0])) {
                     File::append($envExamplePath, "\n".$var);
                 }
             }
         }
     }
 }
-

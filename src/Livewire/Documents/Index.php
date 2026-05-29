@@ -6,6 +6,7 @@ use Afterburner\Documents\Actions\AssignRetentionTag;
 use Afterburner\Documents\Actions\CreateFolder;
 use Afterburner\Documents\Actions\CreateRetentionTag;
 use Afterburner\Documents\Actions\DeleteDocument;
+use Afterburner\Documents\Actions\FinalizeDocumentUpload;
 use Afterburner\Documents\Actions\UpdateDocument;
 use Afterburner\Documents\Actions\UpdateFolder;
 use Afterburner\Documents\Actions\UpdateRetentionTag;
@@ -13,8 +14,10 @@ use Afterburner\Documents\Actions\UploadDocument;
 use Afterburner\Documents\Models\Document;
 use Afterburner\Documents\Models\Folder;
 use Afterburner\Documents\Models\RetentionTag;
-use Afterburner\Documents\Notifications\DocumentUploadComplete;
-use Afterburner\Documents\Services\StorageService;
+use Afterburner\Documents\Support\DocumentUploadRules;
+use Afterburner\Documents\Support\TeamDocumentSettings;
+use Afterburner\Documents\Support\TeamPermissionGate;
+use App\Models\Team;
 use App\Traits\InteractsWithBanner;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -26,54 +29,87 @@ use Spatie\LivewireFilepond\WithFilePond;
 
 class Index extends Component
 {
-    use WithPagination, WithFilePond, InteractsWithBanner;
+    use InteractsWithBanner, WithFilePond, WithPagination;
 
     public $teamId;
+
     public $currentFolderId = null;
+
     public ?string $searchQuery = null;
+
     public ?string $folderFilter = null;
+
     public ?string $statusFilter = null;
+
     public ?string $mimeTypeFilter = null;
+
     public ?string $dateFrom = null;
+
     public ?string $dateTo = null;
 
     // Sorting
     public ?string $folderSortBy = 'name';
+
     public ?string $folderSortDirection = 'asc';
+
     public ?string $documentSortBy = 'created_at';
+
     public ?string $documentSortDirection = 'desc';
 
     // Upload Modal
     public bool $showingUploadModal = false;
+
     public $uploadFiles = [];
+
     public $uploadNotes = '';
 
     // Folder Modal
     public bool $showingFolderModal = false;
+
     public bool $showingEditFolderModal = false;
+
     public bool $showingDeleteModal = false;
+
     public ?Folder $folderToDelete = null;
+
     public ?Folder $folderToEdit = null;
+
     public $folderName = '';
 
     // Document Viewer
     public ?int $viewingDocumentId = null;
 
+    // Browser preview modal
+    public bool $showPreviewModal = false;
+
+    public ?int $previewDocumentId = null;
+
     // Document Edit/Delete
     public bool $showingEditDocumentModal = false;
+
     public bool $showingDeleteDocumentModal = false;
+
     public ?Document $documentToEdit = null;
+
     public ?Document $documentToDelete = null;
+
     public $documentName = '';
+
     public $documentNotes = '';
+
     public $newDocumentFile = null;
+
     public ?int $selectedRetentionTagId = null;
 
     // Move Modals
     public bool $showingMoveDocumentModal = false;
+
     public bool $showingMoveFolderModal = false;
+
     public ?Document $documentToMove = null;
+
     public ?Folder $folderToMove = null;
+
     public ?int $selectedTargetFolderId = null;
 
     // Filters Panel
@@ -81,46 +117,41 @@ class Index extends Component
 
     // Retention Tag Management
     public bool $showingRetentionTagsModal = false;
+
     public bool $showingCreateRetentionTagModal = false;
+
     public bool $showingEditRetentionTagModal = false;
+
     public bool $showingDeleteRetentionTagModal = false;
+
     public ?RetentionTag $retentionTagToEdit = null;
+
     public ?RetentionTag $retentionTagToDelete = null;
+
     public $retentionTagName = '';
+
     public $retentionTagDescription = '';
+
     public $retentionTagPeriodDays = '';
+
     public $retentionTagColor = '#6B7280';
 
     protected function rules(): array
     {
-        $maxFileSize = config('afterburner-documents.upload.max_file_size', 2147483648);
-        $allowedMimeTypes = config('afterburner-documents.upload.allowed_mime_types', []);
+        $allowedMimeTypes = DocumentUploadRules::allowedMimeTypes();
 
         $rules = [
             'folderName' => 'required|string|max:255',
             'documentName' => 'required|string|max:255',
             'documentNotes' => 'nullable|string|max:5000',
             'uploadNotes' => 'nullable|string|max:5000',
-            'uploadFiles.*' => [
-                'required',
-                'file',
-                'max:'.$maxFileSize,
-            ],
-            'newDocumentFile' => [
-                'nullable',
-                'file',
-                'max:'.$maxFileSize,
-            ],
+            'uploadFiles.*' => DocumentUploadRules::livewireFileRules(),
+            'newDocumentFile' => DocumentUploadRules::livewireFileRules(false),
             'retentionTagName' => 'required|string|max:255',
             'retentionTagDescription' => 'nullable|string|max:1000',
             'retentionTagPeriodDays' => 'required|integer|min:1|max:36500',
             'retentionTagColor' => 'required|string|regex:/^#[0-9A-Fa-f]{6}$/',
         ];
-
-        if (!empty($allowedMimeTypes)) {
-            $rules['uploadFiles.*'][] = 'mimetypes:'.implode(',', $allowedMimeTypes);
-            $rules['newDocumentFile'][] = 'mimetypes:'.implode(',', $allowedMimeTypes);
-        }
 
         return $rules;
     }
@@ -139,21 +170,21 @@ class Index extends Component
         'documentSortDirection' => ['except' => 'desc'],
     ];
 
-    public function mount(\App\Models\Team $team, $folder_slug = null)
+    public function mount(Team $team, $folder_slug = null)
     {
         $this->teamId = $team->id;
 
         // Ensure user belongs to team
-        if (!Auth::user()->belongsToTeam($team)) {
+        if (! Auth::user()->belongsToTeam($team)) {
             abort(403, 'Access denied.');
         }
 
         // If folder slug provided, find folder and set currentFolderId
         if ($folder_slug) {
-            $folder = \Afterburner\Documents\Models\Folder::where('team_id', $this->teamId)
+            $folder = Folder::where('team_id', $this->teamId)
                 ->where('slug', $folder_slug)
                 ->first();
-            
+
             if ($folder) {
                 $this->currentFolderId = $folder->id;
             }
@@ -221,13 +252,13 @@ class Index extends Component
     public function sortByName()
     {
         $isCurrentlySorted = ($this->folderSortBy === 'name' || $this->documentSortBy === 'name');
-        
+
         if ($isCurrentlySorted) {
             // Toggle direction for both
-            $newDirection = ($this->folderSortBy === 'name' && $this->folderSortDirection === 'asc') || 
-                           ($this->documentSortBy === 'name' && $this->documentSortDirection === 'asc') 
+            $newDirection = ($this->folderSortBy === 'name' && $this->folderSortDirection === 'asc') ||
+                           ($this->documentSortBy === 'name' && $this->documentSortDirection === 'asc')
                            ? 'desc' : 'asc';
-            
+
             $this->folderSortBy = 'name';
             $this->folderSortDirection = $newDirection;
             $this->documentSortBy = 'name';
@@ -239,20 +270,20 @@ class Index extends Component
             $this->documentSortBy = 'name';
             $this->documentSortDirection = 'asc';
         }
-        
+
         $this->resetPage();
     }
 
     public function sortByOwner()
     {
         $isCurrentlySorted = ($this->folderSortBy === 'created_by' || $this->documentSortBy === 'uploaded_by');
-        
+
         if ($isCurrentlySorted) {
             // Toggle direction for both
-            $newDirection = ($this->folderSortBy === 'created_by' && $this->folderSortDirection === 'asc') || 
-                           ($this->documentSortBy === 'uploaded_by' && $this->documentSortDirection === 'asc') 
+            $newDirection = ($this->folderSortBy === 'created_by' && $this->folderSortDirection === 'asc') ||
+                           ($this->documentSortBy === 'uploaded_by' && $this->documentSortDirection === 'asc')
                            ? 'desc' : 'asc';
-            
+
             $this->folderSortBy = 'created_by';
             $this->folderSortDirection = $newDirection;
             $this->documentSortBy = 'uploaded_by';
@@ -264,20 +295,20 @@ class Index extends Component
             $this->documentSortBy = 'uploaded_by';
             $this->documentSortDirection = 'asc';
         }
-        
+
         $this->resetPage();
     }
 
     public function sortByModified()
     {
         $isCurrentlySorted = ($this->folderSortBy === 'updated_at' || $this->documentSortBy === 'created_at');
-        
+
         if ($isCurrentlySorted) {
             // Toggle direction for both
-            $newDirection = ($this->folderSortBy === 'updated_at' && $this->folderSortDirection === 'asc') || 
-                           ($this->documentSortBy === 'created_at' && $this->documentSortDirection === 'asc') 
+            $newDirection = ($this->folderSortBy === 'updated_at' && $this->folderSortDirection === 'asc') ||
+                           ($this->documentSortBy === 'created_at' && $this->documentSortDirection === 'asc')
                            ? 'desc' : 'asc';
-            
+
             $this->folderSortBy = 'updated_at';
             $this->folderSortDirection = $newDirection;
             $this->documentSortBy = 'created_at';
@@ -289,7 +320,7 @@ class Index extends Component
             $this->documentSortBy = 'created_at';
             $this->documentSortDirection = 'asc';
         }
-        
+
         $this->resetPage();
     }
 
@@ -306,7 +337,7 @@ class Index extends Component
 
     public function toggleFilters()
     {
-        $this->showFilters = !$this->showFilters;
+        $this->showFilters = ! $this->showFilters;
     }
 
     public function clearFilters()
@@ -320,9 +351,26 @@ class Index extends Component
         $this->resetPage();
     }
 
+    protected function hasActiveDocumentFilters(): bool
+    {
+        return filled($this->searchQuery)
+            || filled($this->folderFilter)
+            || filled($this->statusFilter)
+            || filled($this->mimeTypeFilter)
+            || filled($this->dateFrom)
+            || filled($this->dateTo);
+    }
+
     public function navigateToFolder($folderId)
     {
         $this->currentFolderId = $folderId ? (int) $folderId : null;
+        $this->resetPage();
+    }
+
+    public function viewDocumentInFolder($folderId = null): void
+    {
+        $this->clearFilters();
+        $this->currentFolderId = $folderId !== null && $folderId !== '' ? (int) $folderId : null;
         $this->resetPage();
     }
 
@@ -336,7 +384,30 @@ class Index extends Component
     {
         $this->showingUploadModal = false;
         $this->uploadNotes = '';
-        // Don't reset files here - let updatedUploadFiles handle it after processing
+    }
+
+    #[On('documents-upload-complete')]
+    public function handleDocumentsUploadComplete(int $succeeded = 1, int $failed = 0): void
+    {
+        if ($succeeded < 1) {
+            return;
+        }
+
+        if ($failed === 0) {
+            $this->reset(['uploadFiles', 'uploadNotes']);
+            $this->showingUploadModal = false;
+        }
+
+        $message = $succeeded === 1
+            ? __('File received. Saving to cloud storage…')
+            : __(':count files received. Saving to cloud storage…', ['count' => $succeeded]);
+
+        $this->banner($message);
+    }
+
+    public function setMaxFilesError(string $message): void
+    {
+        $this->dangerBanner($message);
     }
 
     /**
@@ -367,16 +438,14 @@ class Index extends Component
         $errors = [];
 
         foreach ($files as $file) {
-            if (!$file instanceof TemporaryUploadedFile) {
+            if (! $file instanceof TemporaryUploadedFile) {
                 continue;
             }
 
             try {
                 DB::transaction(function () use ($file, &$uploadedCount) {
-                    // Ensure uploadNotes is a string, not an array
                     $notes = is_array($this->uploadNotes) ? '' : ($this->uploadNotes ? (string) $this->uploadNotes : '');
-                    
-                    // Create document record
+
                     $document = app(UploadDocument::class)->execute(
                         $this->teamId,
                         $this->currentFolderId,
@@ -385,33 +454,14 @@ class Index extends Component
                         $file->getSize(),
                         Auth::user(),
                         false,
-                        !empty($notes) ? $notes : null
+                        ! empty($notes) ? $notes : null
                     );
 
-                    // Generate storage path
-                    $storageService = app(StorageService::class);
-                    $storagePath = $storageService->generateStoragePath($document);
-                    $document->update(['storage_path' => $storagePath]);
-
-                    // Move file to permanent storage
-                    $fileContent = file_get_contents($file->getRealPath());
-                    $success = $storageService->storeDocument($fileContent, $storagePath);
-
-                    if (!$success) {
-                        throw new \Exception('Failed to store document in storage.');
-                    }
-
-                    // Update document status
-                    $document->update([
-                        'upload_status' => 'completed',
-                        'upload_progress' => 100,
-                    ]);
-
-                    // Create initial version
-                    $document->createVersion($storagePath, $file->getSize(), Auth::user());
-
-                    // Send notification
-                    Auth::user()->notify(new DocumentUploadComplete($document));
+                    app(FinalizeDocumentUpload::class)->executeFromPath(
+                        $document,
+                        $file->getRealPath(),
+                        Auth::user()
+                    );
 
                     $uploadedCount++;
                 });
@@ -431,7 +481,7 @@ class Index extends Component
             $this->banner(__(':count document(s) uploaded successfully.', ['count' => $uploadedCount]));
         }
 
-        if (!empty($errors)) {
+        if (! empty($errors)) {
             foreach ($errors as $error) {
                 $this->dangerBanner($error);
             }
@@ -475,7 +525,7 @@ class Index extends Component
 
     public function openEditFolderModal(Folder $folder)
     {
-        if (!Auth::user()->can('update', $folder)) {
+        if (! Auth::user()->can('update', $folder)) {
             abort(403, 'Access denied.');
         }
 
@@ -493,11 +543,11 @@ class Index extends Component
 
     public function updateFolder()
     {
-        if (!$this->folderToEdit) {
+        if (! $this->folderToEdit) {
             return;
         }
 
-        if (!Auth::user()->can('update', $this->folderToEdit)) {
+        if (! Auth::user()->can('update', $this->folderToEdit)) {
             abort(403, 'Access denied.');
         }
 
@@ -529,7 +579,7 @@ class Index extends Component
 
     public function deleteFolder()
     {
-        if (!$this->folderToDelete) {
+        if (! $this->folderToDelete) {
             return;
         }
 
@@ -540,6 +590,7 @@ class Index extends Component
                 $this->dangerBanner(__('Cannot delete a folder with subfolders inside.'));
                 $this->showingDeleteModal = false;
                 $this->folderToDelete = null;
+
                 return;
             }
 
@@ -547,6 +598,7 @@ class Index extends Component
                 $this->dangerBanner(__('Cannot delete a folder with documents inside.'));
                 $this->showingDeleteModal = false;
                 $this->folderToDelete = null;
+
                 return;
             }
 
@@ -570,7 +622,31 @@ class Index extends Component
 
     public function openDocumentViewer($documentId)
     {
+        if (! TeamDocumentSettings::versioningEnabledForTeam($this->teamId)) {
+            return;
+        }
+
         $this->viewingDocumentId = $documentId;
+    }
+
+    public function openPreview(int $documentId): void
+    {
+        $document = Document::query()
+            ->where('team_id', $this->teamId)
+            ->findOrFail($documentId);
+
+        abort_unless($document->upload_status === 'completed', 404);
+        abort_unless($document->isPreviewableInBrowser(), 404);
+        abort_unless(Auth::user()->can('view', $document), 403);
+
+        $this->previewDocumentId = $documentId;
+        $this->showPreviewModal = true;
+    }
+
+    public function closePreview(): void
+    {
+        $this->showPreviewModal = false;
+        $this->previewDocumentId = null;
     }
 
     public function closeDocumentViewer()
@@ -608,7 +684,7 @@ class Index extends Component
 
     public function openEditDocumentModal(Document $document)
     {
-        if (!Auth::user()->can('update', $document)) {
+        if (! Auth::user()->can('update', $document)) {
             abort(403, 'Access denied.');
         }
 
@@ -629,11 +705,11 @@ class Index extends Component
 
     public function updateDocument()
     {
-        if (!$this->documentToEdit) {
+        if (! $this->documentToEdit) {
             return;
         }
 
-        if (!Auth::user()->can('update', $this->documentToEdit)) {
+        if (! Auth::user()->can('update', $this->documentToEdit)) {
             abort(403, 'Access denied.');
         }
 
@@ -641,29 +717,18 @@ class Index extends Component
         $this->documentName = is_array($this->documentName) ? '' : (string) $this->documentName;
         $this->documentNotes = is_array($this->documentNotes) ? '' : ($this->documentNotes ? (string) $this->documentNotes : '');
 
-        $maxFileSize = config('afterburner-documents.upload.max_file_size', 2147483648);
-        $allowedMimeTypes = config('afterburner-documents.upload.allowed_mime_types', []);
-        
         $rules = [
             'documentName' => 'required|string|max:255',
             'documentNotes' => 'nullable|string|max:5000',
-            'newDocumentFile' => [
-                'nullable',
-                'file',
-                'max:'.$maxFileSize,
-            ],
+            'newDocumentFile' => DocumentUploadRules::livewireFileRules(false),
         ];
-
-        if (!empty($allowedMimeTypes)) {
-            $rules['newDocumentFile'][] = 'mimetypes:'.implode(',', $allowedMimeTypes);
-        }
 
         $this->validate($rules);
 
         try {
             $attributes = [
                 'name' => $this->documentName,
-                'notes' => !empty($this->documentNotes) ? $this->documentNotes : null,
+                'notes' => ! empty($this->documentNotes) ? $this->documentNotes : null,
             ];
             $fileContent = null;
 
@@ -682,21 +747,23 @@ class Index extends Component
                 Auth::user()
             );
 
-            // Update retention tag if changed
-            $retentionTag = $this->selectedRetentionTagId 
-                ? RetentionTag::find($this->selectedRetentionTagId)
-                : null;
-            
-            if ($retentionTag && $retentionTag->team_id !== $this->documentToEdit->team_id) {
-                $this->dangerBanner('Retention tag does not belong to this team.');
-                return;
-            }
+            if (TeamDocumentSettings::retentionEnabledForTeam($this->documentToEdit->team_id)) {
+                $retentionTag = $this->selectedRetentionTagId
+                    ? RetentionTag::find($this->selectedRetentionTagId)
+                    : null;
 
-            app(AssignRetentionTag::class)->execute(
-                $this->documentToEdit,
-                $retentionTag,
-                Auth::user()
-            );
+                if ($retentionTag && $retentionTag->team_id !== $this->documentToEdit->team_id) {
+                    $this->dangerBanner('Retention tag does not belong to this team.');
+
+                    return;
+                }
+
+                app(AssignRetentionTag::class)->execute(
+                    $this->documentToEdit,
+                    $retentionTag,
+                    Auth::user()
+                );
+            }
 
             $this->banner(__('Document updated successfully.'));
             $this->closeEditDocumentModal();
@@ -708,7 +775,7 @@ class Index extends Component
 
     public function confirmDeleteDocument(Document $document)
     {
-        if (!Auth::user()->can('delete', $document)) {
+        if (! Auth::user()->can('delete', $document)) {
             abort(403, 'Access denied.');
         }
 
@@ -724,11 +791,11 @@ class Index extends Component
 
     public function deleteDocument()
     {
-        if (!$this->documentToDelete) {
+        if (! $this->documentToDelete) {
             return;
         }
 
-        if (!Auth::user()->can('delete', $this->documentToDelete)) {
+        if (! Auth::user()->can('delete', $this->documentToDelete)) {
             abort(403, 'Access denied.');
         }
 
@@ -751,7 +818,7 @@ class Index extends Component
     // Move Document Methods
     public function openMoveDocumentModal(Document $document)
     {
-        if (!Auth::user()->can('update', $document)) {
+        if (! Auth::user()->can('update', $document)) {
             abort(403, 'Access denied.');
         }
 
@@ -769,30 +836,32 @@ class Index extends Component
 
     public function moveDocument()
     {
-        if (!$this->documentToMove) {
+        if (! $this->documentToMove) {
             return;
         }
 
-        if (!Auth::user()->can('update', $this->documentToMove)) {
+        if (! Auth::user()->can('update', $this->documentToMove)) {
             abort(403, 'Access denied.');
         }
 
         // Validate target folder (empty string means root/null)
-        $targetFolderId = ($this->selectedTargetFolderId === '' || $this->selectedTargetFolderId === null) 
-            ? null 
+        $targetFolderId = ($this->selectedTargetFolderId === '' || $this->selectedTargetFolderId === null)
+            ? null
             : (int) $this->selectedTargetFolderId;
 
         // Check if moving to same location
         if ($this->documentToMove->folder_id === $targetFolderId) {
             $this->dangerBanner(__('Document is already in this location.'));
+
             return;
         }
 
         // Validate target folder exists and belongs to same team (if not root)
         if ($targetFolderId !== null) {
             $targetFolder = Folder::forTeam($this->teamId)->find($targetFolderId);
-            if (!$targetFolder) {
+            if (! $targetFolder) {
                 $this->dangerBanner(__('Target folder not found.'));
+
                 return;
             }
         }
@@ -816,7 +885,7 @@ class Index extends Component
     // Move Folder Methods
     public function openMoveFolderModal(Folder $folder)
     {
-        if (!Auth::user()->can('update', $folder)) {
+        if (! Auth::user()->can('update', $folder)) {
             abort(403, 'Access denied.');
         }
 
@@ -834,22 +903,23 @@ class Index extends Component
 
     public function moveFolder()
     {
-        if (!$this->folderToMove) {
+        if (! $this->folderToMove) {
             return;
         }
 
-        if (!Auth::user()->can('update', $this->folderToMove)) {
+        if (! Auth::user()->can('update', $this->folderToMove)) {
             abort(403, 'Access denied.');
         }
 
         // Validate target folder (empty string means root/null)
-        $targetParentId = ($this->selectedTargetFolderId === '' || $this->selectedTargetFolderId === null) 
-            ? null 
+        $targetParentId = ($this->selectedTargetFolderId === '' || $this->selectedTargetFolderId === null)
+            ? null
             : (int) $this->selectedTargetFolderId;
 
         // Check if moving to same location
         if ($this->folderToMove->parent_id === $targetParentId) {
             $this->dangerBanner(__('Folder is already in this location.'));
+
             return;
         }
 
@@ -858,13 +928,15 @@ class Index extends Component
             $descendants = $this->getFolderDescendants($this->folderToMove->id);
             if (in_array($targetParentId, $descendants)) {
                 $this->dangerBanner(__('Cannot move folder into its own subfolder.'));
+
                 return;
             }
 
             // Validate target folder exists and belongs to same team
             $targetFolder = Folder::forTeam($this->teamId)->find($targetParentId);
-            if (!$targetFolder) {
+            if (! $targetFolder) {
                 $this->dangerBanner(__('Target folder not found.'));
+
                 return;
             }
         }
@@ -903,9 +975,14 @@ class Index extends Component
     // Retention Tag Management Methods
     public function openRetentionTagsModal()
     {
-        if (!Auth::user()->can('viewAny', RetentionTag::class)) {
+        if (! TeamDocumentSettings::retentionEnabledForTeam($this->teamId)) {
             abort(403, 'Access denied.');
         }
+
+        if (! Auth::user()->can('viewAny', RetentionTag::class)) {
+            abort(403, 'Access denied.');
+        }
+
         $this->showingRetentionTagsModal = true;
     }
 
@@ -916,12 +993,12 @@ class Index extends Component
 
     public function openCreateRetentionTagModal()
     {
-        $team = \App\Models\Team::findOrFail($this->teamId);
-        
-        if (!Auth::user()->hasPermission('manage_retention_tags', $team->id)) {
+        $team = Team::findOrFail($this->teamId);
+
+        if (! TeamPermissionGate::allows(Auth::user(), $team->id, 'manage_retention_tags')) {
             abort(403, 'Access denied.');
         }
-        
+
         $this->reset(['retentionTagName', 'retentionTagDescription', 'retentionTagPeriodDays', 'retentionTagColor']);
         $this->retentionTagPeriodDays = '';
         $this->retentionTagColor = '#6B7280';
@@ -936,9 +1013,9 @@ class Index extends Component
 
     public function createRetentionTag()
     {
-        $team = \App\Models\Team::findOrFail($this->teamId);
-        
-        if (!Auth::user()->hasPermission('manage_retention_tags', $team->id)) {
+        $team = Team::findOrFail($this->teamId);
+
+        if (! TeamPermissionGate::allows(Auth::user(), $team->id, 'manage_retention_tags')) {
             abort(403, 'Access denied.');
         }
 
@@ -961,7 +1038,7 @@ class Index extends Component
                 $this->retentionTagName,
                 (int) $this->retentionTagPeriodDays,
                 $this->retentionTagColor,
-                !empty($this->retentionTagDescription) ? $this->retentionTagDescription : null,
+                ! empty($this->retentionTagDescription) ? $this->retentionTagDescription : null,
                 Auth::user()
             );
 
@@ -974,7 +1051,7 @@ class Index extends Component
 
     public function openEditRetentionTagModal(RetentionTag $tag)
     {
-        if (!Auth::user()->can('update', $tag)) {
+        if (! Auth::user()->can('update', $tag)) {
             abort(403, 'Access denied.');
         }
 
@@ -995,11 +1072,11 @@ class Index extends Component
 
     public function updateRetentionTag()
     {
-        if (!$this->retentionTagToEdit) {
+        if (! $this->retentionTagToEdit) {
             return;
         }
 
-        if (!Auth::user()->can('update', $this->retentionTagToEdit)) {
+        if (! Auth::user()->can('update', $this->retentionTagToEdit)) {
             abort(403, 'Access denied.');
         }
 
@@ -1021,7 +1098,7 @@ class Index extends Component
                 $this->retentionTagToEdit,
                 [
                     'name' => $this->retentionTagName,
-                    'description' => !empty($this->retentionTagDescription) ? $this->retentionTagDescription : null,
+                    'description' => ! empty($this->retentionTagDescription) ? $this->retentionTagDescription : null,
                     'retention_period_days' => (int) $this->retentionTagPeriodDays,
                     'color' => $this->retentionTagColor,
                 ],
@@ -1037,7 +1114,7 @@ class Index extends Component
 
     public function confirmDeleteRetentionTag(RetentionTag $tag)
     {
-        if (!Auth::user()->can('delete', $tag)) {
+        if (! Auth::user()->can('delete', $tag)) {
             abort(403, 'Access denied.');
         }
 
@@ -1053,11 +1130,11 @@ class Index extends Component
 
     public function deleteRetentionTag()
     {
-        if (!$this->retentionTagToDelete) {
+        if (! $this->retentionTagToDelete) {
             return;
         }
 
-        if (!Auth::user()->can('delete', $this->retentionTagToDelete)) {
+        if (! Auth::user()->can('delete', $this->retentionTagToDelete)) {
             abort(403, 'Access denied.');
         }
 
@@ -1068,6 +1145,7 @@ class Index extends Component
                 $this->dangerBanner(__('Cannot delete retention tag. It is currently assigned to :count document(s).', ['count' => $documentsCount]));
                 $this->showingDeleteRetentionTagModal = false;
                 $this->retentionTagToDelete = null;
+
                 return;
             }
 
@@ -1092,15 +1170,16 @@ class Index extends Component
 
         // Build tree structure
         $foldersByParent = $allFolders->groupBy('parent_id');
-        
+
         // Recursively build tree starting from root folders
         $buildTree = function ($parentId = null) use (&$buildTree, $foldersByParent) {
-            if (!$foldersByParent->has($parentId)) {
+            if (! $foldersByParent->has($parentId)) {
                 return collect();
             }
 
-            return $foldersByParent->get($parentId)->map(function ($folder) use (&$buildTree, $foldersByParent) {
+            return $foldersByParent->get($parentId)->map(function ($folder) use (&$buildTree) {
                 $folder->setRelation('children', $buildTree($folder->id));
+
                 return $folder;
             });
         };
@@ -1142,30 +1221,30 @@ class Index extends Component
 
     public function render()
     {
-        $team = \App\Models\Team::findOrFail($this->teamId);
+        $team = Team::findOrFail($this->teamId);
 
-        // Build folders query
-        $foldersQuery = Folder::forTeam($this->teamId)
-            ->where('parent_id', $this->currentFolderId);
+        $hasActiveDocumentFilters = $this->hasActiveDocumentFilters();
 
         // Build documents query
-        $documentsQuery = Document::forTeam($this->teamId)
-            ->where('folder_id', $this->currentFolderId);
+        $documentsQuery = Document::forTeam($this->teamId);
 
+        if ($hasActiveDocumentFilters) {
+            if ($this->folderFilter) {
+                $documentsQuery->where('folder_id', $this->folderFilter);
+            }
+        } else {
+            $documentsQuery->where('folder_id', $this->currentFolderId);
+        }
 
         // Apply search
         if ($this->searchQuery) {
             $documentsQuery->where(function ($q) {
                 $q->where('name', 'like', "%{$this->searchQuery}%")
-                  ->orWhere('filename', 'like', "%{$this->searchQuery}%");
+                    ->orWhere('filename', 'like', "%{$this->searchQuery}%");
             });
         }
 
         // Apply filters
-        if ($this->folderFilter) {
-            $documentsQuery->where('folder_id', $this->folderFilter);
-        }
-
         if ($this->statusFilter) {
             $documentsQuery->byStatus($this->statusFilter);
         }
@@ -1182,26 +1261,33 @@ class Index extends Component
             $documentsQuery->where('created_at', '<=', $this->dateTo);
         }
 
-        // Apply folder sorting
-        $validFolderSortColumns = ['name', 'created_by', 'updated_at'];
-        $folderSortColumn = in_array($this->folderSortBy, $validFolderSortColumns) ? $this->folderSortBy : 'name';
-        $folderSortDirection = in_array($this->folderSortDirection, ['asc', 'desc']) ? $this->folderSortDirection : 'asc';
-        
-        if ($folderSortColumn === 'created_by') {
-            $foldersQuery->join('users', 'folders.created_by', '=', 'users.id')
-                ->select('folders.*')
-                ->orderBy('users.name', $folderSortDirection);
-        } else {
-            $foldersQuery->orderBy($folderSortColumn, $folderSortDirection);
+        $folders = collect();
+
+        if (! $hasActiveDocumentFilters) {
+            $foldersQuery = Folder::forTeam($this->teamId)
+                ->where('parent_id', $this->currentFolderId);
+
+            // Apply folder sorting
+            $validFolderSortColumns = ['name', 'created_by', 'updated_at'];
+            $folderSortColumn = in_array($this->folderSortBy, $validFolderSortColumns) ? $this->folderSortBy : 'name';
+            $folderSortDirection = in_array($this->folderSortDirection, ['asc', 'desc']) ? $this->folderSortDirection : 'asc';
+
+            if ($folderSortColumn === 'created_by') {
+                $foldersQuery->join('users', 'folders.created_by', '=', 'users.id')
+                    ->select('folders.*')
+                    ->orderBy('users.name', $folderSortDirection);
+            } else {
+                $foldersQuery->orderBy($folderSortColumn, $folderSortDirection);
+            }
+
+            $folders = $foldersQuery->with('creator')->get();
         }
-        
-        $folders = $foldersQuery->with('creator')->get();
 
         // Apply document sorting
         $validDocumentSortColumns = ['name', 'uploaded_by', 'created_at', 'size'];
         $documentSortColumn = in_array($this->documentSortBy, $validDocumentSortColumns) ? $this->documentSortBy : 'created_at';
         $documentSortDirection = in_array($this->documentSortDirection, ['asc', 'desc']) ? $this->documentSortDirection : 'desc';
-        
+
         if ($documentSortColumn === 'uploaded_by') {
             $documentsQuery->join('users', 'documents.uploaded_by', '=', 'users.id')
                 ->select('documents.*')
@@ -1209,7 +1295,7 @@ class Index extends Component
         } else {
             $documentsQuery->orderBy($documentSortColumn, $documentSortDirection);
         }
-        
+
         $documents = $documentsQuery->with(['team', 'uploader', 'retentionTag'])->paginate(25);
 
         // Get current folder for breadcrumbs
@@ -1238,6 +1324,26 @@ class Index extends Component
             ->orderBy('name')
             ->get();
 
+        $hasActiveCloudUploads = Document::forTeam($this->teamId)
+            ->whereIn('upload_status', ['uploading', 'processing'])
+            ->exists();
+
+        $previewDocument = null;
+        $previewUrl = null;
+
+        if ($this->showPreviewModal && $this->previewDocumentId) {
+            $previewDocument = Document::query()
+                ->where('team_id', $this->teamId)
+                ->find($this->previewDocumentId);
+
+            if ($previewDocument) {
+                $previewUrl = route('teams.documents.preview', [
+                    'team' => $team,
+                    'document' => $previewDocument,
+                ]);
+            }
+        }
+
         return view('afterburner-documents::documents.index', [
             'team' => $team,
             'folders' => $folders,
@@ -1248,7 +1354,12 @@ class Index extends Component
             'allFolders' => $allFolders,
             'folderTree' => $this->folderTree,
             'retentionTags' => $retentionTags,
+            'retentionEnabled' => TeamDocumentSettings::retentionEnabledForTeam($team),
+            'versioningEnabled' => TeamDocumentSettings::versioningEnabledForTeam($team),
+            'hasActiveDocumentFilters' => $hasActiveDocumentFilters,
+            'hasActiveCloudUploads' => $hasActiveCloudUploads,
+            'previewDocument' => $previewDocument,
+            'previewUrl' => $previewUrl,
         ]);
     }
 }
-

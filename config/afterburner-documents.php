@@ -67,8 +67,14 @@ return [
 
     'upload' => [
         'chunk_size' => env('AFTERBURNER_DOCUMENTS_CHUNK_SIZE', 5242880), // 5MB in bytes
-        'max_file_size' => env('AFTERBURNER_DOCUMENTS_MAX_FILE_SIZE', 2147483648), // 2GB in bytes
+        'max_file_size' => env('AFTERBURNER_DOCUMENTS_MAX_FILE_SIZE', 3221225472), // 3GB in bytes
         'max_chunks' => env('AFTERBURNER_DOCUMENTS_MAX_CHUNKS', 5000), // Maximum number of chunks per upload
+        'session_ttl_hours' => env('AFTERBURNER_DOCUMENTS_SESSION_TTL_HOURS', 24),
+        'notify_on_complete' => [
+            'enabled' => env('AFTERBURNER_DOCUMENTS_NOTIFY_ON_COMPLETE', true),
+            'min_seconds' => (int) env('AFTERBURNER_DOCUMENTS_NOTIFY_MIN_SECONDS', 30),
+            'min_bytes' => (int) env('AFTERBURNER_DOCUMENTS_NOTIFY_MIN_BYTES', 10485760), // 10MB; 0 disables size floor
+        ],
         'allowed_mime_types' => [
             // Documents
             'application/pdf',
@@ -113,6 +119,7 @@ return [
     */
 
     'versioning' => [
+        // Global kill switch. Per-team toggles live in System Settings → Documents.
         'enabled' => env('AFTERBURNER_DOCUMENTS_VERSIONING_ENABLED', true),
         'auto_version_on_update' => env('AFTERBURNER_DOCUMENTS_AUTO_VERSION_ON_UPDATE', true),
     ],
@@ -127,6 +134,7 @@ return [
     */
 
     'retention' => [
+        // Global kill switch. Per-team toggles live in System Settings → Documents.
         'enabled' => env('AFTERBURNER_DOCUMENTS_RETENTION_ENABLED', true),
         'default_retention_period_days' => env('AFTERBURNER_DOCUMENTS_DEFAULT_RETENTION_DAYS', 2555), // ~7 years
     ],
@@ -145,5 +153,23 @@ return [
         'index_document_content' => env('AFTERBURNER_DOCUMENTS_INDEX_CONTENT', false), // Future: full-text search
     ],
 
-];
+    /*
+    |--------------------------------------------------------------------------
+    | Audit Configuration
+    |--------------------------------------------------------------------------
+    |
+    | HTTP routes to exclude from request-level audit logging during uploads.
+    | A single document.uploaded audit entry is written when storage completes.
+    |
+    */
 
+    'audit' => [
+        'skip_routes' => [
+            'teams.documents.upload.process',
+            'teams.documents.upload.patch',
+            'teams.documents.upload.head',
+            'teams.documents.upload.revert',
+        ],
+    ],
+
+];

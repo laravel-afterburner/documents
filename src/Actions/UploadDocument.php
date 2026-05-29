@@ -2,23 +2,22 @@
 
 namespace Afterburner\Documents\Actions;
 
+use Afterburner\Documents\Exceptions\DuplicateDocumentException;
 use Afterburner\Documents\Models\Document;
+use Afterburner\Documents\Services\StorageService;
+use Afterburner\Documents\Support\SubscriptionEntitlementGate;
+use App\Models\Team;
 use App\Models\User;
+use Illuminate\Auth\Access\AuthorizationException;
 
 class UploadDocument
 {
+    public function __construct(
+        protected StorageService $storageService
+    ) {}
+
     /**
      * Initialize a document record for upload.
-     *
-     * @param  int  $teamId
-     * @param  int|null  $folderId
-     * @param  string  $filename
-     * @param  string  $mimeType
-     * @param  int  $size
-     * @param  User  $user
-     * @param  bool  $overwrite  Whether to overwrite existing document
-     * @param  string|null  $notes  Optional notes for the document
-     * @return Document
      */
     public function execute(
         int $teamId,
@@ -30,21 +29,30 @@ class UploadDocument
         bool $overwrite = false,
         ?string $notes = null
     ): Document {
+        $team = Team::query()->findOrFail($teamId);
+
+        if (! SubscriptionEntitlementGate::allows($team)) {
+            throw new AuthorizationException('Documents are not included in your subscription plan.');
+        }
+
+        if (! SubscriptionEntitlementGate::allowsStorageForUpload($team, $size)) {
+            throw new AuthorizationException('Storage limit exceeded for your subscription plan.');
+        }
+
         $name = pathinfo($filename, PATHINFO_FILENAME);
+        $existing = $this->findExistingDocument($teamId, $folderId, $name);
 
-        // Check for existing document
-        $existing = Document::where('team_id', $teamId)
-            ->where('folder_id', $folderId)
-            ->where('name', $name)
-            ->first();
+        if ($existing?->trashed()) {
+            $this->purgeSoftDeletedDocument($existing);
+            $existing = null;
+        }
 
-        if ($existing && !$overwrite) {
-            throw new \Exception("Document with name '{$name}' already exists in this folder.");
+        if ($existing && ! $overwrite) {
+            throw DuplicateDocumentException::inFolder($name);
         }
 
         if ($existing && $overwrite) {
-            // Update existing document
-            $existing->update([
+            $existing->updateQuietly([
                 'filename' => $filename,
                 'mime_type' => $mimeType,
                 'size' => $size,
@@ -57,8 +65,7 @@ class UploadDocument
             return $existing;
         }
 
-        // Create new document
-        return Document::create([
+        $document = new Document([
             'team_id' => $teamId,
             'folder_id' => $folderId,
             'name' => $name,
@@ -71,6 +78,26 @@ class UploadDocument
             'upload_progress' => 0,
             'uploaded_by' => $user->id,
         ]);
+        $document->saveQuietly();
+
+        return $document;
+    }
+
+    protected function findExistingDocument(int $teamId, ?int $folderId, string $name): ?Document
+    {
+        return Document::withTrashed()
+            ->where('team_id', $teamId)
+            ->where('folder_id', $folderId)
+            ->where('name', $name)
+            ->first();
+    }
+
+    protected function purgeSoftDeletedDocument(Document $document): void
+    {
+        $document->loadMissing('versions');
+
+        $this->storageService->deleteDocumentStorage($document);
+        $document->versions()->delete();
+        $document->forceDelete();
     }
 }
-

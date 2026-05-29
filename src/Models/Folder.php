@@ -2,10 +2,13 @@
 
 namespace Afterburner\Documents\Models;
 
+use App\Models\Team;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
 class Folder extends Model
@@ -25,7 +28,7 @@ class Folder extends Model
      */
     public function team(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\Team::class);
+        return $this->belongsTo(Team::class);
     }
 
     /**
@@ -57,7 +60,7 @@ class Folder extends Model
      */
     public function creator(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\User::class, 'created_by');
+        return $this->belongsTo(User::class, 'created_by');
     }
 
     /**
@@ -91,6 +94,30 @@ class Folder extends Model
         while ($folder) {
             array_unshift($path, $folder);
             $folder = $folder->parent;
+        }
+
+        return $path;
+    }
+
+    /**
+     * Build a folder breadcrumb path from a flat folder collection.
+     *
+     * @param  Collection<int, self>  $folders
+     * @return array<int, self>
+     */
+    public static function pathFromCollection($folders, ?int $folderId): array
+    {
+        if (! $folderId) {
+            return [];
+        }
+
+        $foldersById = $folders->keyBy('id');
+        $path = [];
+        $current = $foldersById->get($folderId);
+
+        while ($current) {
+            array_unshift($path, $current);
+            $current = $current->parent_id ? $foldersById->get($current->parent_id) : null;
         }
 
         return $path;
@@ -134,7 +161,7 @@ class Folder extends Model
     public function getTotalDocumentsCount(): int
     {
         $folderIds = array_merge([$this->id], $this->getDescendantIds());
-        
+
         return Document::whereIn('folder_id', $folderIds)->count();
     }
 
@@ -158,4 +185,3 @@ class Folder extends Model
         });
     }
 }
-

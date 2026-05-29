@@ -8,20 +8,11 @@ use Illuminate\Support\Str;
 
 class StorageService
 {
-    /**
-     * Get the R2 disk instance.
-     * 
-     * Note: The 'r2' disk is automatically registered by DocumentsServiceProvider
-     * from config/afterburner-documents.php. Ensure your Cloudflare R2 credentials
-     * are configured in your .env file.
-     */
     protected function getDisk()
     {
-        // Try to get r2 disk, fall back to default if not configured
         try {
             return Storage::disk('r2');
         } catch (\Exception $e) {
-            // If r2 disk not configured, throw helpful error
             throw new \Exception(
                 'R2 disk not configured. Please ensure your Cloudflare R2 credentials are set in '.
                 'config/afterburner-documents.php or your .env file. The disk should be automatically '.
@@ -30,84 +21,143 @@ class StorageService
         }
     }
 
-    /**
-     * Store a chunk temporarily.
-     *
-     * @param  string  $chunkId  Unique identifier for the chunk
-     * @param  string  $content  Chunk content
-     * @return string  Path where chunk was stored
-     */
-    public function storeChunk(string $chunkId, string $content): string
+    protected function getUploadSessionDisk()
     {
-        $path = "chunks/{$chunkId}";
-        $this->getDisk()->put($path, $content);
+        return Storage::disk('documents-uploads');
+    }
+
+    public function createUploadSessionPart(string $uploadId): string
+    {
+        $path = "sessions/{$uploadId}.part";
+        $this->getUploadSessionDisk()->put($path, '');
 
         return $path;
     }
 
-    /**
-     * Assemble chunks into a complete file.
-     *
-     * @param  array  $chunkPaths  Array of chunk paths in order
-     * @param  string  $destinationPath  Final destination path
-     * @return bool
-     */
-    public function assembleChunks(array $chunkPaths, string $destinationPath): bool
+    public function stageFileAtUploadSessionPart(string $sourcePath, ?string $uploadId = null): string
     {
-        $disk = $this->getDisk();
-        $tempFile = tmpfile();
-        $tempPath = stream_get_meta_data($tempFile)['uri'];
+        $uploadId ??= (string) Str::uuid();
+        $partPath = $this->createUploadSessionPart($uploadId);
+        $destination = $this->getUploadSessionDisk()->path($partPath);
+
+        if (! copy($sourcePath, $destination)) {
+            $this->deleteUploadSessionPart($partPath);
+
+            throw new \RuntimeException('Unable to stage uploaded file for cloud transfer.');
+        }
+
+        return $partPath;
+    }
+
+    public function appendToUploadSessionPart(string $partPath, int $offset, string $data): int
+    {
+        $absolutePath = $this->getUploadSessionDisk()->path($partPath);
+
+        $handle = fopen($absolutePath, 'c+b');
+
+        if ($handle === false) {
+            throw new \RuntimeException('Unable to open upload session file for writing.');
+        }
 
         try {
-            // Write all chunks to temporary file
-            foreach ($chunkPaths as $chunkPath) {
-                $chunkContent = $disk->get($chunkPath);
-                file_put_contents($tempPath, $chunkContent, FILE_APPEND);
+            if (fseek($handle, $offset) !== 0) {
+                throw new \RuntimeException('Unable to seek upload session file.');
             }
 
-            // Upload assembled file to R2
-            $success = $disk->put($destinationPath, file_get_contents($tempPath));
+            $written = fwrite($handle, $data);
 
-            // Clean up chunks
-            foreach ($chunkPaths as $chunkPath) {
-                $disk->delete($chunkPath);
+            if ($written === false) {
+                throw new \RuntimeException('Unable to write upload chunk.');
             }
 
-            return $success;
+            fflush($handle);
+
+            return $offset + $written;
         } finally {
-            fclose($tempFile);
+            fclose($handle);
         }
     }
 
-    /**
-     * Store a complete document.
-     *
-     * @param  string  $content  File content
-     * @param  string  $destinationPath  Destination path
-     * @return bool
-     */
-    public function storeDocument(string $content, string $destinationPath): bool
+    public function finalizeUploadSessionPart(string $partPath, string $destinationPath): bool
     {
-        return $this->getDisk()->put($destinationPath, $content);
+        $sessionDisk = $this->getUploadSessionDisk();
+        $sourcePath = $sessionDisk->path($partPath);
+        $stream = fopen($sourcePath, 'r');
+
+        if ($stream === false) {
+            return false;
+        }
+
+        try {
+            $success = $this->getDisk()->writeStream($destinationPath, $stream) !== false;
+        } finally {
+            fclose($stream);
+        }
+
+        if ($success) {
+            $sessionDisk->delete($partPath);
+        }
+
+        return $success;
     }
 
-    /**
-     * Delete a document from storage.
-     *
-     * @param  string  $path  Storage path
-     * @return bool
-     */
+    public function deleteUploadSessionPart(string $partPath): bool
+    {
+        return $this->getUploadSessionDisk()->delete($partPath);
+    }
+
+    public function storeDocument(string $content, string $destinationPath): bool
+    {
+        return $this->getDisk()->put($destinationPath, $content) !== false;
+    }
+
+    public function storeDocumentFromPath(string $sourcePath, string $destinationPath): bool
+    {
+        $stream = fopen($sourcePath, 'r');
+
+        if ($stream === false) {
+            return false;
+        }
+
+        try {
+            return $this->getDisk()->writeStream($destinationPath, $stream) !== false;
+        } finally {
+            fclose($stream);
+        }
+    }
+
+    public function storageFailureMessage(): string
+    {
+        $diskConfig = config('filesystems.disks.r2', []);
+        $driver = $diskConfig['driver'] ?? 's3';
+
+        if ($driver === 's3' && empty($diskConfig['bucket'] ?? null)) {
+            return 'Cloudflare R2 is not configured. Set AFTERBURNER_DOCUMENTS_R2_* values in your .env file.';
+        }
+
+        return 'The storage request was rejected. Check your storage credentials and bucket permissions.';
+    }
+
     public function deleteDocument(string $path): bool
     {
         return $this->getDisk()->delete($path);
     }
 
-    /**
-     * Get the URL for a document.
-     *
-     * @param  string  $path  Storage path
-     * @return string
-     */
+    public function deleteDocumentStorage(Document $document): void
+    {
+        $disk = $this->getDisk();
+
+        if ($document->storage_path !== '' && $disk->exists($document->storage_path)) {
+            $disk->delete($document->storage_path);
+        }
+
+        foreach ($document->versions as $version) {
+            if ($version->storage_path !== '' && $disk->exists($version->storage_path)) {
+                $disk->delete($version->storage_path);
+            }
+        }
+    }
+
     public function getDocumentUrl(string $path): string
     {
         $disk = $this->getDisk();
@@ -118,12 +168,6 @@ class StorageService
         return '';
     }
 
-    /**
-     * Generate storage path for a document.
-     *
-     * @param  Document  $document
-     * @return string
-     */
     public function generateStoragePath(Document $document): string
     {
         $pathTemplate = config('afterburner-documents.storage_path', 'documents/{team_id}/{year}/{month}/{document_id}');
@@ -141,16 +185,38 @@ class StorageService
             $document->id,
         ], $pathTemplate);
 
-        return rtrim($path, '/').'/'.$document->filename;
+        return rtrim($path, '/').'/'.static::safeStorageFilename($document->filename);
     }
 
     /**
-     * Generate storage path for a document version.
-     *
-     * @param  Document  $document
-     * @param  int  $versionNumber
-     * @return string
+     * Build an object-storage-safe filename while preserving the extension.
      */
+    public static function safeStorageFilename(string $filename): string
+    {
+        $extension = pathinfo($filename, PATHINFO_EXTENSION);
+        $basename = pathinfo($filename, PATHINFO_FILENAME);
+        $safeBasename = Str::slug($basename);
+
+        if ($safeBasename === '') {
+            $safeBasename = 'file';
+        }
+
+        return $extension !== ''
+            ? "{$safeBasename}.{$extension}"
+            : $safeBasename;
+    }
+
+    public function copy(string $from, string $to): bool
+    {
+        $disk = $this->getDisk();
+
+        if (! $disk->exists($from)) {
+            return false;
+        }
+
+        return $disk->copy($from, $to);
+    }
+
     public function generateVersionStoragePath(Document $document, int $versionNumber): string
     {
         $basePath = $this->generateStoragePath($document);
@@ -160,26 +226,13 @@ class StorageService
         return "{$baseDir}/versions/{$versionNumber}/{$filename}";
     }
 
-    /**
-     * Check if a path exists in storage.
-     *
-     * @param  string  $path
-     * @return bool
-     */
     public function exists(string $path): bool
     {
         return $this->getDisk()->exists($path);
     }
 
-    /**
-     * Get file size from storage.
-     *
-     * @param  string  $path
-     * @return int
-     */
     public function getSize(string $path): int
     {
         return $this->getDisk()->size($path);
     }
 }
-

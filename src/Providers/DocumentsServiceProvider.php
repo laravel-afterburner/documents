@@ -14,6 +14,7 @@ use Afterburner\Documents\Models\RetentionTag;
 use Afterburner\Documents\Policies\DocumentPolicy;
 use Afterburner\Documents\Policies\FolderPolicy;
 use Afterburner\Documents\Policies\RetentionTagPolicy;
+use Afterburner\Playbook\Support\Playbook;
 use App\Models\Team;
 use App\Support\Navigation;
 use App\Support\PackageSeederRegistry;
@@ -95,6 +96,7 @@ class DocumentsServiceProvider extends ServiceProvider
 
         // Register navigation menu item
         $this->registerNavigation();
+        $this->registerPlaybook();
 
         // Register system settings section
         $this->registerSystemSettings();
@@ -237,6 +239,23 @@ class DocumentsServiceProvider extends ServiceProvider
             'active' => function () {
                 return request()->routeIs('teams.documents.*');
             },
+        ]);
+    }
+
+    protected function registerPlaybook(): void
+    {
+        if (! class_exists(Playbook::class)) {
+            return;
+        }
+
+        Playbook::register([
+            'key' => 'documents',
+            'label' => 'Documents',
+            'order' => 10,
+            'path' => __DIR__.'/../../playbook',
+            'enabled' => fn () => config('afterburner-documents.enabled', true),
+            'permission' => fn ($user) => $user?->currentTeam
+                && Gate::forUser($user)->check('documents.access-team', $user->currentTeam),
         ]);
     }
 

@@ -1,6 +1,6 @@
 # Afterburner Documents Package
 
-Document management package for Laravel Afterburner Jetstream.
+Team-scoped document management package for Laravel Afterburner Jetstream.
 
 ## Features
 

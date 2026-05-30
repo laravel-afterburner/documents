@@ -91,7 +91,9 @@ class StorageService
         try {
             $success = $this->getDisk()->writeStream($destinationPath, $stream) !== false;
         } finally {
-            fclose($stream);
+            if (is_resource($stream)) {
+                fclose($stream);
+            }
         }
 
         if ($success) {
@@ -122,7 +124,9 @@ class StorageService
         try {
             return $this->getDisk()->writeStream($destinationPath, $stream) !== false;
         } finally {
-            fclose($stream);
+            if (is_resource($stream)) {
+                fclose($stream);
+            }
         }
     }
 

@@ -1,10 +1,8 @@
-<x-app-layout title="Documents">
+<x-app-layout :title="\Afterburner\Documents\Support\PageHeader::make('Documents')">
     @include('afterburner-documents::components.filepond-assets')
 
     <x-slot name="header">
-        <h2 class="text-xl font-semibold leading-tight text-gray-800 dark:text-gray-200">
-            Documents
-        </h2>
+        <x-afterburner-documents::page-header section="Documents" />
     </x-slot>
 
     <div>
@@ -13,4 +11,3 @@
         </div>
     </div>
 </x-app-layout>
-

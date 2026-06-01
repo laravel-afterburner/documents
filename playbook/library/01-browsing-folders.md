@@ -11,9 +11,13 @@ Documents are grouped in folders so council, staff, and owners can find records 
 ## Steps
 
 1. Open **Documents** from the main navigation for your current {{ entity_label }}.
-2. Browse the folder tree on the left (or top-level list, depending on layout).
+2. Browse the folder tree on the left.
 3. Click a folder to view its files.
-4. Use search or filters when available to locate a specific document.
+4. Use the search field to locate documents by name when available.
+
+## Preview and download
+
+Click a document to **preview** supported file types in the browser, or use **Download** to save a copy locally. See [Preview and download](/help/documents/preview-and-download) for details.
 
 ## Permissions
 
@@ -21,5 +25,5 @@ Folder visibility follows your role and {{ entity_label }} document settings. If
 
 ## See also
 
-- [Documents overview](/playbook/documents/overview)
-- [Uploading documents](/playbook/documents/uploading-documents)
+- [Documents overview](/help/documents/overview)
+- [Uploading documents](/help/documents/uploading-documents)

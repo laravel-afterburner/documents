@@ -12,13 +12,14 @@ The Documents library is your {{ entity_label }}'s secure file store for bylaws,
 
 Members who pass the **documents.access-team** check for the current {{ entity_label }} can open **Documents** in the main navigation and this playbook section.
 
-## How Documents differs from the playbook
+## How Documents differs from Help & Support
 
 - **Documents** — files your organization uploads and manages.
-- **Playbook** — built-in help content (like this page) shipped with {{ app_name }} and optional packages.
+- **Help & Support** — built-in guidance (like this page) shipped with {{ app_name }} and optional packages.
 
 ## Next steps
 
-- [Browsing and folders](/playbook/documents/browsing-folders)
-- [Uploading documents](/playbook/documents/uploading-documents)
-- [Platform roles](/playbook/platform/understanding-roles)
+- [Browsing and folders](/help/documents/browsing-folders)
+- [Uploading documents](/help/documents/uploading-documents)
+- [Preview and download](/help/documents/preview-and-download)
+- [Platform roles](/help/platform/understanding-roles)

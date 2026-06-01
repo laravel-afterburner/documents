@@ -73,6 +73,11 @@ class DocumentsServiceProvider extends ServiceProvider
         // Load views
         $this->loadViewsFrom(__DIR__.'/../../resources/views', 'afterburner-documents');
 
+        Blade::anonymousComponentPath(
+            __DIR__.'/../../resources/views/components',
+            'documents'
+        );
+
         // Load migrations
         $this->loadMigrationsFrom(__DIR__.'/../../database/migrations');
 

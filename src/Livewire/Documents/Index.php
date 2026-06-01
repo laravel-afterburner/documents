@@ -19,6 +19,7 @@ use Afterburner\Documents\Support\TeamDocumentSettings;
 use Afterburner\Documents\Support\TeamPermissionGate;
 use App\Models\Team;
 use App\Traits\InteractsWithBanner;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\On;
@@ -201,31 +202,37 @@ class Index extends Component
     public function updatingSearchQuery()
     {
         $this->resetPage();
+        $this->resetPage('foldersPage');
     }
 
     public function updatingFolderFilter()
     {
         $this->resetPage();
+        $this->resetPage('foldersPage');
     }
 
     public function updatingStatusFilter()
     {
         $this->resetPage();
+        $this->resetPage('foldersPage');
     }
 
     public function updatingMimeTypeFilter()
     {
         $this->resetPage();
+        $this->resetPage('foldersPage');
     }
 
     public function updatingDateFrom()
     {
         $this->resetPage();
+        $this->resetPage('foldersPage');
     }
 
     public function updatingDateTo()
     {
         $this->resetPage();
+        $this->resetPage('foldersPage');
     }
 
     public function sortFolders($column)
@@ -247,6 +254,7 @@ class Index extends Component
             $this->documentSortDirection = 'asc';
         }
         $this->resetPage();
+        $this->resetPage('foldersPage');
     }
 
     public function sortByName()
@@ -272,6 +280,7 @@ class Index extends Component
         }
 
         $this->resetPage();
+        $this->resetPage('foldersPage');
     }
 
     public function sortByOwner()
@@ -297,6 +306,7 @@ class Index extends Component
         }
 
         $this->resetPage();
+        $this->resetPage('foldersPage');
     }
 
     public function sortByModified()
@@ -322,12 +332,14 @@ class Index extends Component
         }
 
         $this->resetPage();
+        $this->resetPage('foldersPage');
     }
 
     public function updatedCurrentFolderId($value)
     {
         $this->currentFolderId = $value !== '' && $value !== null ? (int) $value : null;
         $this->resetPage();
+        $this->resetPage('foldersPage');
     }
 
     public function updatedSelectedTargetFolderId($value)
@@ -349,6 +361,7 @@ class Index extends Component
         $this->dateFrom = null;
         $this->dateTo = null;
         $this->resetPage();
+        $this->resetPage('foldersPage');
     }
 
     protected function hasActiveDocumentFilters(): bool
@@ -365,6 +378,7 @@ class Index extends Component
     {
         $this->currentFolderId = $folderId ? (int) $folderId : null;
         $this->resetPage();
+        $this->resetPage('foldersPage');
     }
 
     public function viewDocumentInFolder($folderId = null): void
@@ -372,6 +386,7 @@ class Index extends Component
         $this->clearFilters();
         $this->currentFolderId = $folderId !== null && $folderId !== '' ? (int) $folderId : null;
         $this->resetPage();
+        $this->resetPage('foldersPage');
     }
 
     public function openUploadModal()
@@ -1261,7 +1276,7 @@ class Index extends Component
             $documentsQuery->where('created_at', '<=', $this->dateTo);
         }
 
-        $folders = collect();
+        $folders = new LengthAwarePaginator([], 0, 25, 1, ['pageName' => 'foldersPage']);
 
         if (! $hasActiveDocumentFilters) {
             $foldersQuery = Folder::forTeam($this->teamId)
@@ -1280,7 +1295,7 @@ class Index extends Component
                 $foldersQuery->orderBy($folderSortColumn, $folderSortDirection);
             }
 
-            $folders = $foldersQuery->with('creator')->get();
+            $folders = $foldersQuery->with('creator')->paginate(25, pageName: 'foldersPage');
         }
 
         // Apply document sorting

@@ -164,7 +164,7 @@
 
             <!-- Documents and Folders List -->
             <div class="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
-                @if($folders->count() > 0 || $documents->count() > 0)
+                @if($folders->total() > 0 || $documents->total() > 0)
                     <div class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                             <thead class="bg-gray-50 dark:bg-gray-900">
@@ -398,6 +398,9 @@
                                                 @can('download', $document)
                                                     <x-action-icon type="download" href="{{ route('teams.documents.download', [$document->team, $document]) }}" title="Download document" />
                                                 @endcan
+                                                @if (view()->exists('afterburner-meetings::components.document-meeting-link-icon'))
+                                                    @include('afterburner-meetings::components.document-meeting-link-icon', ['document' => $document, 'team' => $team])
+                                                @endif
                                                 @can('delete', $document)
                                                     <x-action-icon type="delete" wire:click="confirmDeleteDocument({{ $document->id }})" title="Delete document" />
                                                 @endcan
@@ -411,7 +414,12 @@
                     </div>
 
                     <!-- Pagination -->
-                    <div class="px-6 py-4 border-t border-gray-200 dark:border-gray-700">
+                    <div class="px-6 py-4 border-t border-gray-200 dark:border-gray-700 space-y-4">
+                        @if ($folders->total() > $folders->perPage())
+                            <div>
+                                {{ $folders->links() }}
+                            </div>
+                        @endif
                         {{ $documents->links() }}
                     </div>
                 @else
@@ -1160,5 +1168,7 @@
         </x-slot>
     </x-confirmation-modal>
     @endif
+
+    @include('afterburner-documents::components.document-meeting-links-listener', ['team' => $team])
 </div>
 

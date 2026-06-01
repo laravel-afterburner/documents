@@ -26,6 +26,13 @@ return new class extends Migration
             $table->index('team_id');
             $table->unique(['team_id', 'slug']);
         });
+
+        Schema::table('documents', function (Blueprint $table) {
+            $table->foreign('retention_tag_id')
+                ->references('id')
+                ->on('retention_tags')
+                ->nullOnDelete();
+        });
     }
 
     /**

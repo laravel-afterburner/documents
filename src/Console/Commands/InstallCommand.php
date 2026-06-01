@@ -86,8 +86,7 @@ class InstallCommand extends Command
     {
         $envVars = [
             '',
-            '# Afterburner Documents Configuration',
-            'AFTERBURNER_DOCUMENTS_ENABLED=true',
+            '# Afterburner Documents (Cloudflare R2)',
             'AFTERBURNER_DOCUMENTS_R2_ENDPOINT=',
             'AFTERBURNER_DOCUMENTS_R2_ACCESS_KEY_ID=',
             'AFTERBURNER_DOCUMENTS_R2_SECRET_ACCESS_KEY=',
@@ -95,14 +94,6 @@ class InstallCommand extends Command
             'AFTERBURNER_DOCUMENTS_R2_REGION=auto',
             'AFTERBURNER_DOCUMENTS_R2_URL=',
             'AFTERBURNER_DOCUMENTS_R2_USE_PATH_STYLE_ENDPOINT=false',
-            'AFTERBURNER_DOCUMENTS_CHUNK_SIZE=5242880',
-            'AFTERBURNER_DOCUMENTS_MAX_FILE_SIZE=2147483648',
-            'AFTERBURNER_DOCUMENTS_MAX_CHUNKS=5000',
-            'AFTERBURNER_DOCUMENTS_SESSION_TTL_HOURS=24',
-            'AFTERBURNER_DOCUMENTS_STORAGE_PATH=documents/{team_id}/{year}/{month}/{document_id}',
-            'AFTERBURNER_DOCUMENTS_VERSIONING_ENABLED=true',
-            'AFTERBURNER_DOCUMENTS_AUTO_VERSION_ON_UPDATE=true',
-            'AFTERBURNER_DOCUMENTS_SEARCH_ENABLED=true',
         ];
 
         // Add to .env if it exists

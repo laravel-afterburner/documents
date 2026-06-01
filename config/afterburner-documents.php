@@ -11,7 +11,7 @@ return [
     |
     */
 
-    'enabled' => env('AFTERBURNER_DOCUMENTS_ENABLED', true),
+    'enabled' => true,
 
     /*
     |--------------------------------------------------------------------------
@@ -24,13 +24,13 @@ return [
     */
 
     'r2' => [
-        'endpoint' => env('AFTERBURNER_DOCUMENTS_R2_ENDPOINT', env('CLOUDFLARE_R2_ENDPOINT')),
-        'access_key_id' => env('AFTERBURNER_DOCUMENTS_R2_ACCESS_KEY_ID', env('CLOUDFLARE_R2_ACCESS_KEY_ID')),
-        'secret_access_key' => env('AFTERBURNER_DOCUMENTS_R2_SECRET_ACCESS_KEY', env('CLOUDFLARE_R2_SECRET_ACCESS_KEY')),
-        'bucket' => env('AFTERBURNER_DOCUMENTS_R2_BUCKET', env('CLOUDFLARE_R2_BUCKET')),
-        'region' => env('AFTERBURNER_DOCUMENTS_R2_REGION', env('CLOUDFLARE_R2_REGION', 'auto')),
-        'url' => env('AFTERBURNER_DOCUMENTS_R2_URL', env('CLOUDFLARE_R2_URL')),
-        'use_path_style_endpoint' => env('AFTERBURNER_DOCUMENTS_R2_USE_PATH_STYLE_ENDPOINT', env('CLOUDFLARE_R2_USE_PATH_STYLE_ENDPOINT', false)),
+        'endpoint' => env('AFTERBURNER_DOCUMENTS_R2_ENDPOINT'),
+        'access_key_id' => env('AFTERBURNER_DOCUMENTS_R2_ACCESS_KEY_ID'),
+        'secret_access_key' => env('AFTERBURNER_DOCUMENTS_R2_SECRET_ACCESS_KEY'),
+        'bucket' => env('AFTERBURNER_DOCUMENTS_R2_BUCKET'),
+        'region' => env('AFTERBURNER_DOCUMENTS_R2_REGION', 'auto'),
+        'url' => env('AFTERBURNER_DOCUMENTS_R2_URL'),
+        'use_path_style_endpoint' => env('AFTERBURNER_DOCUMENTS_R2_USE_PATH_STYLE_ENDPOINT', false),
     ],
 
     /*
@@ -46,13 +46,13 @@ return [
 
     'filesystem_disk' => [
         'driver' => 's3',
-        'key' => env('AFTERBURNER_DOCUMENTS_R2_ACCESS_KEY_ID', env('CLOUDFLARE_R2_ACCESS_KEY_ID')),
-        'secret' => env('AFTERBURNER_DOCUMENTS_R2_SECRET_ACCESS_KEY', env('CLOUDFLARE_R2_SECRET_ACCESS_KEY')),
-        'region' => env('AFTERBURNER_DOCUMENTS_R2_REGION', env('CLOUDFLARE_R2_REGION', 'auto')),
-        'bucket' => env('AFTERBURNER_DOCUMENTS_R2_BUCKET', env('CLOUDFLARE_R2_BUCKET')),
-        'url' => env('AFTERBURNER_DOCUMENTS_R2_URL', env('CLOUDFLARE_R2_URL')),
-        'endpoint' => env('AFTERBURNER_DOCUMENTS_R2_ENDPOINT', env('CLOUDFLARE_R2_ENDPOINT')),
-        'use_path_style_endpoint' => env('AFTERBURNER_DOCUMENTS_R2_USE_PATH_STYLE_ENDPOINT', env('CLOUDFLARE_R2_USE_PATH_STYLE_ENDPOINT', false)),
+        'key' => env('AFTERBURNER_DOCUMENTS_R2_ACCESS_KEY_ID'),
+        'secret' => env('AFTERBURNER_DOCUMENTS_R2_SECRET_ACCESS_KEY'),
+        'region' => env('AFTERBURNER_DOCUMENTS_R2_REGION', 'auto'),
+        'bucket' => env('AFTERBURNER_DOCUMENTS_R2_BUCKET'),
+        'url' => env('AFTERBURNER_DOCUMENTS_R2_URL'),
+        'endpoint' => env('AFTERBURNER_DOCUMENTS_R2_ENDPOINT'),
+        'use_path_style_endpoint' => env('AFTERBURNER_DOCUMENTS_R2_USE_PATH_STYLE_ENDPOINT', false),
         'throw' => false,
     ],
 
@@ -66,14 +66,14 @@ return [
     */
 
     'upload' => [
-        'chunk_size' => env('AFTERBURNER_DOCUMENTS_CHUNK_SIZE', 5242880), // 5MB in bytes
-        'max_file_size' => env('AFTERBURNER_DOCUMENTS_MAX_FILE_SIZE', 3221225472), // 3GB in bytes
-        'max_chunks' => env('AFTERBURNER_DOCUMENTS_MAX_CHUNKS', 5000), // Maximum number of chunks per upload
-        'session_ttl_hours' => env('AFTERBURNER_DOCUMENTS_SESSION_TTL_HOURS', 24),
+        'chunk_size' => 5242880, // 5MB in bytes
+        'max_file_size' => 3221225472, // 3GB in bytes
+        'max_chunks' => 5000, // Maximum number of chunks per upload
+        'session_ttl_hours' => 24,
         'notify_on_complete' => [
-            'enabled' => env('AFTERBURNER_DOCUMENTS_NOTIFY_ON_COMPLETE', true),
-            'min_seconds' => (int) env('AFTERBURNER_DOCUMENTS_NOTIFY_MIN_SECONDS', 30),
-            'min_bytes' => (int) env('AFTERBURNER_DOCUMENTS_NOTIFY_MIN_BYTES', 10485760), // 10MB; 0 disables size floor
+            'enabled' => true,
+            'min_seconds' => 30,
+            'min_bytes' => 10485760, // 10MB; 0 disables size floor
         ],
         'allowed_mime_types' => [
             // Documents
@@ -107,7 +107,7 @@ return [
     |
     */
 
-    'storage_path' => env('AFTERBURNER_DOCUMENTS_STORAGE_PATH', 'documents/{team_id}/{year}/{month}/{document_id}'),
+    'storage_path' => 'documents/{team_id}/{year}/{month}/{document_id}',
 
     /*
     |--------------------------------------------------------------------------
@@ -120,8 +120,8 @@ return [
 
     'versioning' => [
         // Global kill switch. Per-team toggles live in System Settings → Documents.
-        'enabled' => env('AFTERBURNER_DOCUMENTS_VERSIONING_ENABLED', true),
-        'auto_version_on_update' => env('AFTERBURNER_DOCUMENTS_AUTO_VERSION_ON_UPDATE', true),
+        'enabled' => true,
+        'auto_version_on_update' => true,
     ],
 
     /*
@@ -135,8 +135,8 @@ return [
 
     'retention' => [
         // Global kill switch. Per-team toggles live in System Settings → Documents.
-        'enabled' => env('AFTERBURNER_DOCUMENTS_RETENTION_ENABLED', true),
-        'default_retention_period_days' => env('AFTERBURNER_DOCUMENTS_DEFAULT_RETENTION_DAYS', 2555), // ~7 years
+        'enabled' => true,
+        'default_retention_period_days' => 2555, // ~7 years
     ],
 
     /*
@@ -149,8 +149,8 @@ return [
     */
 
     'search' => [
-        'enabled' => env('AFTERBURNER_DOCUMENTS_SEARCH_ENABLED', true),
-        'index_document_content' => env('AFTERBURNER_DOCUMENTS_INDEX_CONTENT', false), // Future: full-text search
+        'enabled' => true,
+        'index_document_content' => false, // Future: full-text search
     ],
 
     /*

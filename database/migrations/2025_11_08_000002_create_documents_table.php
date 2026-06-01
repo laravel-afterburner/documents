@@ -16,6 +16,7 @@ return new class extends Migration
             $table->foreignId('team_id')->constrained('teams')->onDelete('cascade');
             $table->foreignId('folder_id')->nullable()->constrained('folders')->onDelete('set null');
             $table->string('name');
+            $table->text('notes')->nullable();
             $table->string('filename');
             $table->string('mime_type');
             $table->unsignedBigInteger('size');
@@ -23,13 +24,16 @@ return new class extends Migration
             $table->enum('upload_status', ['pending', 'uploading', 'processing', 'completed', 'failed'])->default('pending');
             $table->unsignedTinyInteger('upload_progress')->default(0);
             $table->foreignId('uploaded_by')->constrained('users')->onDelete('cascade');
+            $table->unsignedBigInteger('retention_tag_id')->nullable();
+            $table->timestamp('retention_expires_at')->nullable();
             $table->timestamps();
             $table->softDeletes();
 
-            // Indexes
             $table->index('team_id');
             $table->index('folder_id');
             $table->index('upload_status');
+            $table->index('retention_tag_id');
+            $table->index('retention_expires_at');
             $table->unique(['team_id', 'folder_id', 'name']);
         });
     }
@@ -42,4 +46,3 @@ return new class extends Migration
         Schema::dropIfExists('documents');
     }
 };
-

@@ -3,6 +3,7 @@
 namespace Afterburner\Documents\Support;
 
 use Afterburner\Documents\Models\Document;
+use Afterburner\Subscriptions\Support\SubscriptionEntitlementGate as CoreSubscriptionEntitlementGate;
 use App\Models\Team;
 
 final class SubscriptionEntitlementGate
@@ -20,8 +21,16 @@ final class SubscriptionEntitlementGate
             return true;
         }
 
+        if (class_exists(CoreSubscriptionEntitlementGate::class)) {
+            return CoreSubscriptionEntitlementGate::allows($team, $feature);
+        }
+
         if (self::teamOnGenericTrial($team)) {
             return true;
+        }
+
+        if (method_exists($team, 'hasActiveSubscription') && ! $team->hasActiveSubscription()) {
+            return false;
         }
 
         return $team->hasEntitlement($feature);
@@ -36,11 +45,19 @@ final class SubscriptionEntitlementGate
             return true;
         }
 
+        if (class_exists(CoreSubscriptionEntitlementGate::class)) {
+            return CoreSubscriptionEntitlementGate::withinLimit($team, $limitKey, (int) $current);
+        }
+
         if (self::teamOnGenericTrial($team)) {
             return true;
         }
 
-        return $team->withinEntitlementLimit($limitKey, $current);
+        if (method_exists($team, 'hasActiveSubscription') && ! $team->hasActiveSubscription()) {
+            return false;
+        }
+
+        return $team->withinEntitlementLimit($limitKey, (int) $current);
     }
 
     /**

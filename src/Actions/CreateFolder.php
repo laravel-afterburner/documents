@@ -3,7 +3,7 @@
 namespace Afterburner\Documents\Actions;
 
 use Afterburner\Documents\Models\Folder;
-use App\Models\AuditLog;
+use Afterburner\Documents\Support\DocumentsAuditLogger;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
@@ -39,20 +39,7 @@ class CreateFolder
                 'created_by' => $user->id,
             ]);
 
-            // Create audit log entry
-            AuditLog::create([
-                'user_id' => $user->id,
-                'action_type' => 'created',
-                'category' => 'documents',
-                'event_name' => 'folder.created',
-                'auditable_type' => Folder::class,
-                'auditable_id' => $folder->id,
-                'team_id' => $teamId,
-                'changes' => [
-                    'name' => $name,
-                    'parent_id' => $parentId,
-                ],
-            ]);
+            DocumentsAuditLogger::folderCreated($folder, $user);
 
             return $folder;
         });

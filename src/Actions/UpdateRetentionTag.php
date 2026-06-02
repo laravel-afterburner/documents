@@ -3,7 +3,7 @@
 namespace Afterburner\Documents\Actions;
 
 use Afterburner\Documents\Models\RetentionTag;
-use App\Models\AuditLog;
+use Afterburner\Documents\Support\DocumentsAuditLogger;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
@@ -48,18 +48,7 @@ class UpdateRetentionTag
                 }
             }
 
-            if (!empty($changes)) {
-                AuditLog::create([
-                    'user_id' => $user->id,
-                    'action_type' => 'updated',
-                    'category' => 'documents',
-                    'event_name' => 'retention_tag.updated',
-                    'auditable_type' => RetentionTag::class,
-                    'auditable_id' => $tag->id,
-                    'team_id' => $tag->team_id,
-                    'changes' => $changes,
-                ]);
-            }
+            DocumentsAuditLogger::retentionTagUpdated($tag, $user, $changes);
 
             return $tag->fresh();
         });

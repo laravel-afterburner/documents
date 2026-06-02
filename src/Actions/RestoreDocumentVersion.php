@@ -5,7 +5,7 @@ namespace Afterburner\Documents\Actions;
 use Afterburner\Documents\Models\Document;
 use Afterburner\Documents\Models\DocumentVersion;
 use Afterburner\Documents\Services\StorageService;
-use App\Models\AuditLog;
+use Afterburner\Documents\Support\DocumentsAuditLogger;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -63,21 +63,7 @@ class RestoreDocumentVersion
                 'filename' => basename($version->storage_path),
             ]);
 
-            // Create audit log entry
-            AuditLog::create([
-                'user_id' => $user->id,
-                'action_type' => 'restored',
-                'category' => 'documents',
-                'event_name' => 'document.version.restored',
-                'auditable_type' => DocumentVersion::class,
-                'auditable_id' => $version->id,
-                'team_id' => $document->team_id,
-                'changes' => [
-                    'version_number' => $version->version_number,
-                    'document_id' => $document->id,
-                    'document_name' => $document->name,
-                ],
-            ]);
+            DocumentsAuditLogger::documentVersionRestored($document, $user, $version->version_number);
 
             return $document->fresh();
         });

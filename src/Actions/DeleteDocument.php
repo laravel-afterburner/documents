@@ -4,7 +4,7 @@ namespace Afterburner\Documents\Actions;
 
 use Afterburner\Documents\Models\Document;
 use Afterburner\Documents\Services\StorageService;
-use App\Models\AuditLog;
+use Afterburner\Documents\Support\DocumentsAuditLogger;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
@@ -30,20 +30,7 @@ class DeleteDocument
 
             $document->loadMissing('versions');
 
-            AuditLog::create([
-                'user_id' => $user->id,
-                'action_type' => 'deleted',
-                'category' => 'documents',
-                'event_name' => 'document.deleted',
-                'auditable_type' => Document::class,
-                'auditable_id' => $document->id,
-                'team_id' => $document->team_id,
-                'changes' => [
-                    'name' => $document->name,
-                    'filename' => $document->filename,
-                    'permanent' => $permanent,
-                ],
-            ]);
+            DocumentsAuditLogger::documentDeleted($document, $user, $permanent);
 
             $this->storageService->deleteDocumentStorage($document);
 

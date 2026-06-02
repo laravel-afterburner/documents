@@ -16,7 +16,9 @@ use Afterburner\Documents\Policies\FolderPolicy;
 use Afterburner\Documents\Policies\RetentionTagPolicy;
 use Afterburner\Playbook\Support\Playbook;
 use App\Models\Team;
+use App\Support\Audit\AuditCategories;
 use App\Support\Navigation;
+use App\Support\NavigationActive;
 use App\Support\PackageSeederRegistry;
 use App\Support\SystemSettings;
 use Illuminate\Support\Facades\Blade;
@@ -98,6 +100,7 @@ class DocumentsServiceProvider extends ServiceProvider
 
         // Skip noisy upload chunk/init HTTP requests from audit logging
         $this->registerAuditSkipRoutes();
+        $this->registerAuditCategories();
 
         // Register navigation menu item
         $this->registerNavigation();
@@ -211,6 +214,17 @@ class DocumentsServiceProvider extends ServiceProvider
         ]);
     }
 
+    protected function registerAuditCategories(): void
+    {
+        if (! class_exists(AuditCategories::class)) {
+            return;
+        }
+
+        AuditCategories::register([
+            'documents' => 'Documents',
+        ]);
+    }
+
     /**
      * Register navigation menu item.
      */
@@ -242,7 +256,7 @@ class DocumentsServiceProvider extends ServiceProvider
                 return Gate::forUser($user)->check('documents.access-team', $user->currentTeam);
             },
             'active' => function () {
-                return request()->routeIs('teams.documents.*');
+                return NavigationActive::routeIs('teams.documents.*');
             },
         ]);
     }
@@ -276,7 +290,7 @@ class DocumentsServiceProvider extends ServiceProvider
 
         SystemSettings::register([
             'key' => 'documents',
-            'order' => 10,
+            'order' => 16,
             'component' => 'documents.settings.documents-settings',
             'params' => fn ($team) => ['team' => $team],
             'permission' => function ($user) {

@@ -3,7 +3,7 @@
 namespace Afterburner\Documents\Actions;
 
 use Afterburner\Documents\Models\RetentionTag;
-use App\Models\AuditLog;
+use Afterburner\Documents\Support\DocumentsAuditLogger;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
@@ -48,21 +48,7 @@ class CreateRetentionTag
                 'created_by' => $user->id,
             ]);
 
-            // Create audit log entry
-            AuditLog::create([
-                'user_id' => $user->id,
-                'action_type' => 'created',
-                'category' => 'documents',
-                'event_name' => 'retention_tag.created',
-                'auditable_type' => RetentionTag::class,
-                'auditable_id' => $tag->id,
-                'team_id' => $teamId,
-                'changes' => [
-                    'name' => $name,
-                    'retention_period_days' => $retentionPeriodDays,
-                    'color' => $color,
-                ],
-            ]);
+            DocumentsAuditLogger::retentionTagCreated($tag, $user);
 
             return $tag;
         });

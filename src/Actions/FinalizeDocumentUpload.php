@@ -6,7 +6,7 @@ use Afterburner\Documents\Models\Document;
 use Afterburner\Documents\Notifications\DocumentUploadComplete;
 use Afterburner\Documents\Services\StorageService;
 use Afterburner\Documents\Support\DocumentUploadNotificationRules;
-use App\Models\AuditLog;
+use Afterburner\Documents\Support\DocumentsAuditLogger;
 use App\Models\User;
 
 class FinalizeDocumentUpload
@@ -100,21 +100,6 @@ class FinalizeDocumentUpload
 
     protected function logUploadAudit(Document $document, User $user): void
     {
-        AuditLog::create([
-            'user_id' => $user->id,
-            'action_type' => 'created',
-            'category' => 'documents',
-            'event_name' => 'document.uploaded',
-            'auditable_type' => Document::class,
-            'auditable_id' => $document->id,
-            'team_id' => $document->team_id,
-            'changes' => [
-                'name' => $document->name,
-                'filename' => $document->filename,
-                'mime_type' => $document->mime_type,
-                'size' => $document->size,
-                'folder_id' => $document->folder_id,
-            ],
-        ]);
+        DocumentsAuditLogger::documentUploaded($document, $user);
     }
 }

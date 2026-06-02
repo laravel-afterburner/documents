@@ -1,5 +1,5 @@
 <div>
-    <x-form-section>
+    <x-form-section submit="save">
         <x-slot name="title">
             Documents
         </x-slot>
@@ -13,7 +13,7 @@
                 <label class="flex items-start gap-3">
                     <input
                         type="checkbox"
-                        wire:model.live="retentionTagsEnabled"
+                        wire:model="retentionTagsEnabled"
                         class="mt-1 rounded border-gray-300 dark:border-gray-700 text-indigo-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-900"
                     />
                     <span>
@@ -29,7 +29,7 @@
                 <label class="flex items-start gap-3">
                     <input
                         type="checkbox"
-                        wire:model.live="versioningEnabled"
+                        wire:model="versioningEnabled"
                         class="mt-1 rounded border-gray-300 dark:border-gray-700 text-indigo-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-900"
                     />
                     <span>
@@ -42,6 +42,16 @@
                     </span>
                 </label>
             </div>
+        </x-slot>
+
+        <x-slot name="actions">
+            <x-action-message class="me-3" on="saved">
+                {{ __('Saved.') }}
+            </x-action-message>
+
+            <x-button wire:loading.attr="disabled">
+                {{ __('Save') }}
+            </x-button>
         </x-slot>
     </x-form-section>
 </div>

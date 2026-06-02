@@ -3,7 +3,7 @@
 namespace Afterburner\Documents\Actions;
 
 use Afterburner\Documents\Models\Folder;
-use App\Models\AuditLog;
+use Afterburner\Documents\Support\DocumentsAuditLogger;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
@@ -49,18 +49,7 @@ class UpdateFolder
                 }
             }
 
-            if (!empty($changes)) {
-                AuditLog::create([
-                    'user_id' => $user->id,
-                    'action_type' => 'updated',
-                    'category' => 'documents',
-                    'event_name' => 'folder.updated',
-                    'auditable_type' => Folder::class,
-                    'auditable_id' => $folder->id,
-                    'team_id' => $folder->team_id,
-                    'changes' => $changes,
-                ]);
-            }
+            DocumentsAuditLogger::folderUpdated($folder, $user, $changes);
 
             return $folder->fresh();
         });

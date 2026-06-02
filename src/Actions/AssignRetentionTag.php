@@ -4,7 +4,7 @@ namespace Afterburner\Documents\Actions;
 
 use Afterburner\Documents\Models\Document;
 use Afterburner\Documents\Models\RetentionTag;
-use App\Models\AuditLog;
+use Afterburner\Documents\Support\DocumentsAuditLogger;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
@@ -44,27 +44,8 @@ class AssignRetentionTag
                 ]);
             }
 
-            // Create audit log entry
-            if ($oldTagId !== $document->retention_tag_id) {
-                AuditLog::create([
-                    'user_id' => $user->id,
-                    'action_type' => 'updated',
-                    'category' => 'documents',
-                    'event_name' => 'document.retention_tag.assigned',
-                    'auditable_type' => Document::class,
-                    'auditable_id' => $document->id,
-                    'team_id' => $document->team_id,
-                    'changes' => [
-                        'retention_tag_id' => [
-                            'before' => $oldTagId,
-                            'after' => $retentionTag?->id,
-                        ],
-                        'retention_expires_at' => [
-                            'before' => $document->getOriginal('retention_expires_at'),
-                            'after' => $document->retention_expires_at?->toDateTimeString(),
-                        ],
-                    ],
-                ]);
+            if ($oldTagId !== $document->retention_tag_id && $retentionTag) {
+                DocumentsAuditLogger::retentionTagAssigned($document->fresh(), $retentionTag, $user);
             }
 
             return $document->fresh();

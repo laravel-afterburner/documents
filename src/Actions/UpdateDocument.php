@@ -6,7 +6,7 @@ use Afterburner\Documents\Models\Document;
 use Afterburner\Documents\Models\DocumentVersion;
 use Afterburner\Documents\Services\StorageService;
 use Afterburner\Documents\Support\TeamDocumentSettings;
-use App\Models\AuditLog;
+use Afterburner\Documents\Support\DocumentsAuditLogger;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
@@ -87,19 +87,7 @@ class UpdateDocument
 
         $version = $document->createVersion($versionPath, $size, $user);
 
-        AuditLog::create([
-            'user_id' => $user->id,
-            'action_type' => 'created',
-            'category' => 'documents',
-            'event_name' => 'document.version.created',
-            'auditable_type' => DocumentVersion::class,
-            'auditable_id' => $version->id,
-            'team_id' => $document->team_id,
-            'changes' => [
-                'version_number' => $version->version_number,
-                'document_id' => $document->id,
-            ],
-        ]);
+        DocumentsAuditLogger::documentVersionCreated($version, $document, $user);
     }
 
     protected function logDocumentUpdate(
@@ -123,15 +111,6 @@ class UpdateDocument
             return;
         }
 
-        AuditLog::create([
-            'user_id' => $user->id,
-            'action_type' => 'updated',
-            'category' => 'documents',
-            'event_name' => 'document.updated',
-            'auditable_type' => Document::class,
-            'auditable_id' => $document->id,
-            'team_id' => $document->team_id,
-            'changes' => $changes,
-        ]);
+        DocumentsAuditLogger::documentUpdated($document, $user, $changes);
     }
 }

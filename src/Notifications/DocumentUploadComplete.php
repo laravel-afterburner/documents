@@ -35,7 +35,7 @@ class DocumentUploadComplete extends Notification
      */
     public function toMail(object $notifiable): MailMessage
     {
-        return (new MailMessage)
+        return team_mail_message($this->document->team)
             ->subject('Document Upload Complete')
             ->line("Your document '{$this->document->name}' has been uploaded successfully.")
             ->action('View Document', route('teams.documents.show', [

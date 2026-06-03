@@ -109,6 +109,7 @@ class DocumentsServiceProvider extends ServiceProvider
         // Register system settings section
         $this->registerSystemSettings();
         $this->registerPackageSeeder();
+        $this->registerSubscriptionPackageFeatures();
 
         // Register Artisan commands
         if ($this->app->runningInConsole()) {
@@ -309,5 +310,17 @@ class DocumentsServiceProvider extends ServiceProvider
         if (class_exists(PackageSeederRegistry::class)) {
             PackageSeederRegistry::register(DocumentPermissionsSeeder::class);
         }
+    }
+
+    protected function registerSubscriptionPackageFeatures(): void
+    {
+        if (! class_exists(\Afterburner\Subscriptions\Support\SubscriptionPackageFeatures::class)) {
+            return;
+        }
+
+        \Afterburner\Subscriptions\Support\SubscriptionPackageFeatures::register('documents', 'Documents', [
+            'Document library & folders',
+            'Upload, preview & download',
+        ]);
     }
 }

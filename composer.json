@@ -1,7 +1,7 @@
 {
     "name": "laravel-afterburner/documents",
     "description": "Document management package for Afterburner applications",
-    "version": "1.5.2",
+    "version": "1.5.3",
     "type": "library",
     "license": "MIT",
     "require": {

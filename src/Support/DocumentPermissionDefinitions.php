@@ -5,10 +5,39 @@ namespace Afterburner\Documents\Support;
 class DocumentPermissionDefinitions
 {
     /**
+     * @return list<string>
+     */
+    public static function slugs(): array
+    {
+        return [
+            'manage_documents',
+            'view_documents',
+            'create_documents',
+            'edit_documents',
+            'delete_documents',
+            'download_documents',
+            'share_documents',
+            'manage_document_permissions',
+            'view_document_versions',
+            'restore_document_versions',
+            'manage_folders',
+            'manage_folder_permissions',
+            'manage_retention_tags',
+        ];
+    }
+
+    /**
      * @return array<int, array{name: string, slug: string, description: string}>
      */
     public static function all(): array
     {
+        if (class_exists(\App\Support\PermissionCatalog::class)) {
+            return collect(\App\Support\PermissionCatalog::definitions())
+                ->filter(fn (array $permission) => in_array($permission['slug'], self::slugs(), true))
+                ->values()
+                ->all();
+        }
+
         return [
             [
                 'name' => 'View Documents',

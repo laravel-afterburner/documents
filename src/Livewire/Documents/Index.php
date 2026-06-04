@@ -15,6 +15,7 @@ use Afterburner\Documents\Models\Document;
 use Afterburner\Documents\Models\Folder;
 use Afterburner\Documents\Models\RetentionTag;
 use Afterburner\Documents\Support\DocumentUploadRules;
+use Afterburner\Documents\Support\DocumentsPermissions;
 use Afterburner\Documents\Support\TeamDocumentSettings;
 use Afterburner\Documents\Support\TeamPermissionGate;
 use App\Models\Team;
@@ -175,10 +176,13 @@ class Index extends Component
     {
         $this->teamId = $team->id;
 
-        // Ensure user belongs to team
-        if (! Auth::user()->belongsToTeam($team)) {
+        $user = Auth::user();
+
+        if (! $user->belongsToTeam($team)) {
             abort(403, 'Access denied.');
         }
+
+        abort_unless(DocumentsPermissions::canViewSection($user, $team, DocumentsPermissions::SECTION_LIBRARY), 403);
 
         // If folder slug provided, find folder and set currentFolderId
         if ($folder_slug) {
@@ -1237,6 +1241,7 @@ class Index extends Component
     public function render()
     {
         $team = Team::findOrFail($this->teamId);
+        $user = Auth::user();
 
         $hasActiveDocumentFilters = $this->hasActiveDocumentFilters();
 
@@ -1361,6 +1366,8 @@ class Index extends Component
 
         return view('afterburner-documents::documents.index', [
             'team' => $team,
+            'canManageFolders' => DocumentsPermissions::canViewSection($user, $team, DocumentsPermissions::SECTION_FOLDERS),
+            'canManageRetention' => DocumentsPermissions::canViewSection($user, $team, DocumentsPermissions::SECTION_RETENTION),
             'folders' => $folders,
             'documents' => $documents,
             'currentFolder' => $currentFolder,

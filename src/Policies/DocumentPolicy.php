@@ -3,6 +3,7 @@
 namespace Afterburner\Documents\Policies;
 
 use Afterburner\Documents\Models\Document;
+use Afterburner\Documents\Support\DocumentsPermissions;
 use Afterburner\Documents\Support\SubscriptionEntitlementGate;
 use Afterburner\Documents\Support\TeamDocumentSettings;
 use Afterburner\Documents\Support\TeamPermissionGate;
@@ -39,7 +40,7 @@ class DocumentPolicy
             return false;
         }
 
-        return TeamPermissionGate::allows($user, $team->id, 'view_documents');
+        return DocumentsPermissions::canAccessModule($user, $team);
     }
 
     /**

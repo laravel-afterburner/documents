@@ -9,15 +9,13 @@
 
             <!-- Action Buttons -->
             <div class="mb-6 flex gap-2 justify-end items-center">
-                @if($retentionEnabled)
-                    @can('viewAny', \Afterburner\Documents\Models\RetentionTag::class)
+                @if($retentionEnabled && ($canManageRetention ?? false))
                         <x-secondary-button
                             wire:click="openRetentionTagsModal"
                             no-spinner
                         >
                             Manage Retention Tags
                         </x-secondary-button>
-                    @endcan
                 @endif
                 @can('create', [\Afterburner\Documents\Models\Document::class, $team])
                     <x-button
@@ -27,14 +25,14 @@
                         Upload Document
                     </x-button>
                 @endcan
-                @can('create', [\Afterburner\Documents\Models\Folder::class, $team])
+                @if($canManageFolders ?? false)
                     <x-button
                         wire:click="openFolderModal"
                         no-spinner
                     >
                         New Folder
                     </x-button>
-                @endcan
+                @endif
                 <x-secondary-button
                     wire:click="toggleFilters"
                     no-spinner

@@ -7,18 +7,19 @@ use App\Models\Team;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 
+
 Route::middleware(['web', 'auth', 'verified'])->group(function () {
     // Team-based document routes
-    Route::get('/teams/{team}/documents', [DocumentsController::class, 'index'])
+    Route::get('/' . entity_url_slug() . '/{team}/documents', [DocumentsController::class, 'index'])
         ->name('teams.documents.index');
 
     // Folder navigation route
-    Route::get('/teams/{team}/documents/{folder_slug}', [DocumentsController::class, 'folder'])
+    Route::get('/' . entity_url_slug() . '/{team}/documents/{folder_slug}', [DocumentsController::class, 'folder'])
         ->name('teams.documents.folder')
         ->where('folder_slug', '[a-z0-9-]+');
 
     // Document download route
-    Route::get('/teams/{team}/documents/{document}/download', function (Team $team, Document $document) {
+    Route::get('/' . entity_url_slug() . '/{team}/documents/{document}/download', function (Team $team, Document $document) {
         if (! $document->team->is($team)) {
             abort(404);
         }
@@ -38,7 +39,7 @@ Route::middleware(['web', 'auth', 'verified'])->group(function () {
         ->middleware('can:download,document');
 
     // Inline browser preview (PDF, images, plain text)
-    Route::get('/teams/{team}/documents/{document}/preview', function (Team $team, Document $document) {
+    Route::get('/' . entity_url_slug() . '/{team}/documents/{document}/preview', function (Team $team, Document $document) {
         if (! $document->team->is($team)) {
             abort(404);
         }
@@ -65,15 +66,15 @@ Route::middleware(['web', 'auth', 'verified'])->group(function () {
         ->middleware('can:view,document');
 
     // FilePond native chunked upload routes
-    Route::post('/teams/{team}/documents/upload', [FilePondUploadController::class, 'process'])
+    Route::post('/' . entity_url_slug() . '/{team}/documents/upload', [FilePondUploadController::class, 'process'])
         ->name('teams.documents.upload.process');
 
-    Route::match(['patch', 'post'], '/teams/{team}/documents/upload/{uploadId}', [FilePondUploadController::class, 'patch'])
+    Route::match(['patch', 'post'], '/' . entity_url_slug() . '/{team}/documents/upload/{uploadId}', [FilePondUploadController::class, 'patch'])
         ->name('teams.documents.upload.patch');
 
-    Route::match(['head'], '/teams/{team}/documents/upload/{uploadId}', [FilePondUploadController::class, 'head'])
+    Route::match(['head'], '/' . entity_url_slug() . '/{team}/documents/upload/{uploadId}', [FilePondUploadController::class, 'head'])
         ->name('teams.documents.upload.head');
 
-    Route::delete('/teams/{team}/documents/upload/{uploadId}', [FilePondUploadController::class, 'revert'])
+    Route::delete('/' . entity_url_slug() . '/{team}/documents/upload/{uploadId}', [FilePondUploadController::class, 'revert'])
         ->name('teams.documents.upload.revert');
 });

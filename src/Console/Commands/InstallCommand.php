@@ -73,7 +73,7 @@ class InstallCommand extends Command
         $this->comment('Next steps:');
         $this->comment('1. Configure your Cloudflare R2 credentials in .env');
         $this->comment('2. The R2 disk has been automatically configured from config/afterburner-documents.php');
-        $this->comment('3. Visit /teams/{team}/documents to start using documents');
+        $this->comment('3. Visit /'.entity_url_slug().'/{team}/documents to start using documents');
         $this->comment('Note: Document migrations load automatically from the package.');
 
         return Command::SUCCESS;

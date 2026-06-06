@@ -5,7 +5,7 @@
         </x-slot>
 
         <x-slot name="description">
-            Configure document management options for this {{ config('afterburner.entity_label', 'team') }}.
+            Configure document management options for this {{ entity_label() }}.
         </x-slot>
 
         <x-slot name="form">

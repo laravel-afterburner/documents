@@ -1,11 +1,12 @@
 {
     "name": "laravel-afterburner/documents",
     "description": "Document management package for Afterburner applications",
-    "version": "1.6.2",
+    "version": "1.6.3",
     "type": "library",
     "license": "MIT",
     "require": {
         "php": "^8.2",
+        "laravel-afterburner/support": "^1.0",
         "laravel/framework": "^11.0",
         "laravel-afterburner/jetstream": "^1.0|dev-master",
         "livewire/livewire": "^3.5",

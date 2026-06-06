@@ -1,14 +1,14 @@
 <div>
 
     <div>
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+        <div class="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
             <!-- Breadcrumbs -->
             <div class="mb-4">
                 @include('afterburner-documents::components.breadcrumbs', ['folder' => $currentFolder])
             </div>
 
             <!-- Action Buttons -->
-            <div class="mb-6 flex gap-2 justify-end items-center">
+            <div class="page-actions items-center">
                 @if($retentionEnabled && ($canManageRetention ?? false))
                         <x-secondary-button
                             wire:click="openRetentionTagsModal"
@@ -150,7 +150,7 @@
                                 <button
                                     wire:click="clearFilters"
                                     type="button"
-                                    class="w-full inline-flex justify-center items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600"
+                                    class="inline-flex justify-center items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600"
                                 >
                                     Clear Filters
                                 </button>
@@ -164,7 +164,7 @@
             <div class="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
                 @if($folders->total() > 0 || $documents->total() > 0)
                     <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                        <table class="data-table table-documents min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                             <thead class="bg-gray-50 dark:bg-gray-900">
                                 <tr>
                                     <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400">
@@ -297,7 +297,7 @@
                                             {{ $folder->getTotalDocumentsCount() }} items
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            <div class="flex items-center justify-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <div class="flex items-center justify-center space-x-2 row-actions">
                                                 @can('update', $folder)
                                                     <x-action-icon type="move" wire:click="openMoveFolderModal({{ $folder->id }})" title="Move folder" />
                                                     <x-action-icon type="edit" wire:click="openEditFolderModal({{ $folder->id }})" title="Edit folder" />
@@ -383,7 +383,7 @@
                                             @endif
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            <div class="flex items-center justify-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <div class="flex items-center justify-center space-x-2 row-actions">
                                                 @can('update', $document)
                                                     <x-action-icon type="move" wire:click="openMoveDocumentModal({{ $document->id }})" title="Move document" />
                                                     <x-action-icon type="edit" wire:click="openEditDocumentModal({{ $document->id }})" title="Edit document" />
@@ -865,7 +865,7 @@
                 @if($retentionTags->count() > 0)
                     <div>
                         <div class="overflow-x-auto">
-                            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                            <table class="data-table table-documents min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                                 <thead class="bg-gray-50 dark:bg-gray-900">
                                     <tr>
                                         <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -911,7 +911,7 @@
                                                 {{ $tag->documents_count }}
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                <div class="flex items-center justify-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <div class="flex items-center justify-center space-x-2 row-actions">
                                                     @can('update', $tag)
                                                         <button
                                                             type="button"

@@ -17,7 +17,7 @@ use Afterburner\Documents\Models\RetentionTag;
 use Afterburner\Documents\Support\DocumentUploadRules;
 use Afterburner\Documents\Support\DocumentsPermissions;
 use Afterburner\Documents\Support\TeamDocumentSettings;
-use Afterburner\Documents\Support\TeamPermissionGate;
+use App\Support\TeamPermissionGate;
 use App\Models\Team;
 use App\Traits\InteractsWithBanner;
 use Illuminate\Pagination\LengthAwarePaginator;

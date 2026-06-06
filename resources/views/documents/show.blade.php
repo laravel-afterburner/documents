@@ -1,4 +1,4 @@
-<x-app-layout :title="\Afterburner\Documents\Support\PageHeader::make('Documents')">
+<x-app-layout :title="\App\Support\PageHeader::make('Documents')">
     @include('afterburner-documents::components.filepond-assets')
 
     <x-slot name="header">

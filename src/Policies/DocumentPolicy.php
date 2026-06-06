@@ -6,7 +6,7 @@ use Afterburner\Documents\Models\Document;
 use Afterburner\Documents\Support\DocumentsPermissions;
 use Afterburner\Documents\Support\SubscriptionEntitlementGate;
 use Afterburner\Documents\Support\TeamDocumentSettings;
-use Afterburner\Documents\Support\TeamPermissionGate;
+use App\Support\TeamPermissionGate;
 use App\Models\Team;
 use App\Models\User;
 use Illuminate\Auth\Access\HandlesAuthorization;

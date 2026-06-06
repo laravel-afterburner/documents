@@ -2,7 +2,7 @@
 
 namespace Afterburner\Documents\Database\Seeders;
 
-use Afterburner\Documents\Database\Seeders\Concerns\AssignsPermissionsToTeamOwners;
+use App\Database\Seeders\Concerns\AssignsPermissionsToTeamOwners;
 use Afterburner\Documents\Support\DocumentPermissionDefinitions;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;

@@ -4,6 +4,7 @@ namespace Afterburner\Documents\Support;
 
 use App\Models\Team;
 use App\Models\User;
+use App\Support\TeamPermissionGate;
 
 /**
  * Documents UI areas mapped to permission slugs.

@@ -4,7 +4,7 @@ namespace Afterburner\Documents\Policies;
 
 use Afterburner\Documents\Models\Folder;
 use Afterburner\Documents\Support\SubscriptionEntitlementGate;
-use Afterburner\Documents\Support\TeamPermissionGate;
+use App\Support\TeamPermissionGate;
 use App\Models\Team;
 use App\Models\User;
 use Illuminate\Auth\Access\HandlesAuthorization;

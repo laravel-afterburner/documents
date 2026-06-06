@@ -1,6 +1,6 @@
 <?php
 
-namespace Afterburner\Documents\Database\Seeders\Concerns;
+namespace App\Database\Seeders\Concerns;
 
 use Illuminate\Support\Facades\DB;
 

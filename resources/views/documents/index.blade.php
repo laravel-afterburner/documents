@@ -1022,7 +1022,7 @@
                         <input
                             id="createRetentionTagColor"
                             type="color"
-                            class="h-10 w-20 rounded border-gray-300 cursor-pointer"
+                            class="h-10 w-20 cursor-pointer rounded border-gray-300 dark:border-gray-600"
                             wire:model="retentionTagColor"
                         />
                         <x-input
@@ -1108,7 +1108,7 @@
                         <input
                             id="editRetentionTagColor"
                             type="color"
-                            class="h-10 w-20 rounded border-gray-300 cursor-pointer"
+                            class="h-10 w-20 cursor-pointer rounded border-gray-300 dark:border-gray-600"
                             wire:model="retentionTagColor"
                         />
                         <x-input
